@@ -110,14 +110,12 @@ options(na.action = na.exclude)
 
 hr_outcomes <- c("water_imp", "less_than_5", "san_imp", "housing_imp")
 library(lme4)
-hr_models_slope = lapply(setNames(hr_outcomes, hr_outcomes), function(var) {
+hr_models <- lapply(setNames(hr_outcomes, hr_outcomes), function(var) {
   form = paste( var, "~ fish_factor  + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac +
-                (1 | clusters) + (1+ fish_factor | country_fac)")
+                (1 | clusters)")
   glmer(form, data=hr_analysis_dataset,nAGQ = 0,family = binomial
   )
 })
-
-anova(hr_models_noslope$housing_imp, hr_models_slope$housing_imp, refit=FALSE)
 
 library(MuMIn)
 water_imp_dredge <- dredge(hr_models$water_imp, fixed="fish_factor")
@@ -134,11 +132,51 @@ housing_imp_dredge$indicator <- "water_imp"
 water_imp_final <-
   glmer(
     water_imp ~ fish_factor  + num_childrenunder5 + quintile_nowashnomat_fac +
-      (1 | clusters),
-    nAGQ = 0,
+      (1 | clusters) + (1+ fish_factor|country_fac),
+    nAGQ = 1,
     data = hr_analysis_dataset,
     family = "binomial"
   )
+
+
+water_imp_final <-
+  glmer(
+    water_imp ~ fishing_community  +
+      (fishing_community | country_),
+    data = hr_analysis_dataset,
+    family = "binomial"
+  )
+
+
+
+
+
+
+
+
+
+
+
+ci <- confint(water_imp_final, level = 0.95)
+
+
+confint(m, method = "boot", boot.type = "basic", seed = 123, nsim = 1000, .progress = "txt")
+ ci <- confint(water_imp_final, method = "boot", boot.type = "basic", seed = 123, nsim=10, .progress = "txt")
+
+cV <- data.frame(lme4::ranef(water_imp_final, condVar = TRUE))
+
+plot(hr_analysis_dataset, asp="fill")
+
+coef(water_imp_final)$country_fac
+str(hr_analysis_dataset$fish_factor)
+#Overall values
+x<- data.frame(coef(summary(water_imp_final))[ , "Estimate"])
+#Values by country
+x2<- data.frame(coef(water_imp_final)$country_fac)
+#Random effects by country
+x3<- data.frame(ranef(water_imp_final)$country_fac)
+
+colMeans(ranef(water_imp_final)$country_fac)
 
 summary(water_imp_final)
 
