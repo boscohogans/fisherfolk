@@ -81,8 +81,6 @@ variables <-
 
 hr_select[variables] <- lapply(hr_select[variables], as.factor)
 
-library(table1)
-
 #Propensity score matching
 propensity_score <-
   read.csv("propensity_score_matching_20190923.csv")
@@ -104,36 +102,23 @@ hr_analysis_dataset$clusters <-
   paste(hr_analysis_dataset$hv000, hr_analysis_dataset$hv021,  sep = "_")
 
 ##Build full model with all variables 
-
-
-nrow(hr_analysis_dataset)
-nrow(hr_analysis_dataset[complete.cases(hr_analysis_dataset),])
-
 hr_outcomes <- c("water_imp", "less_than_5", "san_imp", "housing_imp")
 library(lme4)
 hr_models <- lapply(setNames(hr_outcomes, hr_outcomes), function(var) {
   form = paste( var, "~ fish_factor  + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac +
                 (1 | clusters)")
-  glmer(form, data=hr_analysis_dataset,nAGQ = 0,family = binomial, na.action = na.omit
+  mod <- glmer(form, data=hr_analysis_dataset,nAGQ = 0,family = binomial, na.action = na.fail
   )
+  data.frame(coef(summary(mod)))
 })
 
 library(MuMIn)
+all_model_dredge <- purrr::map_df(hr_models,dredge)
 
-x <- purrr::map_df(hr_models,dredge)
-
-
-water_imp_dredge <- dredge(hr_models$water_imp, fixed="fish_factor")
-water_imp_dredge$indicator <- "water_imp"
-less5_dredge <- dredge(hr_models$less_than_5, fixed="fish_factor")
-less5_dredge$indicator <- "water_imp"
-san_imp_dredge <- dredge(hr_models$san_imp, fixed="fish_factor")
-san_imp_dredge$indicator <- "water_imp"
-housing_imp_dredge <- dredge(hr_models$housing_imp, fixed="fish_factor")
-housing_imp_dredge$indicator <- "water_imp"
+test <- dredge(hr_models$water_imp, fixed='fish_factor')
 
 #Model with lowest AIC
-#Improved water source
+#Define random intercept
 random_intercepts <- "(1|clusters)"
 
 water_imp_vars <- c("fish_factor", "num_childrenunder5", "quintile_nowashnomat_fac")
@@ -143,7 +128,6 @@ housing_imp_vars <- c("fish_factor","num_hh_members", "num_childrenunder5", "qui
 
 all_response <- list(water_imp_vars, less5_vars, san_imp_vars, housing_imp_vars)
 outcomes <- c("water_imp", "less_than_5", "san_imp", "housing_imp")
-
 
 all_models <- lapply(setNames(outcomes, outcomes), function(var) {
   lapply(all_response, function(var2) {
@@ -161,8 +145,7 @@ san_imp_final <- all_models$san_imp[3]
 housing_imp_final <- all_models$housing_imp[4]
 
 
-water_coefs <- data.frame(coef(summary(water_imp_final)))
-water_imp_var <- unique(rownames(water_coefs))
+
 
 
 countries <- c("Kenya", "Malawi", "Tanzania", "Uganda", "Zambia")
@@ -171,12 +154,12 @@ all_models_country <- lapply(setNames(outcomes, outcomes), function(var) {
   lapply(all_response, function(var2) {
     fixed <- paste0(var2, collapse= "+")
     formula <- as.formula(paste(var, "~", fixed, "+", random_intercepts))
-    glmer(formula, hr_analysis_dataset, family='binomial', nAGQ = 0)
+    mod <- glmer(formula, hr_analysis_dataset, family='binomial', nAGQ = 0)
+    data.frame(coef(summary(mod)))
   })
 })
 
 
-final_results <- c(all_models$water_imp[1], all_models$less_than_5[2], all_models$san_imp[3], all_models$housing_imp[4])
 
 all_models <- list(water_imp_final, less5_final, san_imp_final, housing_imp_final)
 
@@ -192,6 +175,18 @@ water_imp_country <-
     })
   })
 
+water_imp_final <-
+  glmer(
+    water_imp ~ fish_factor  + num_childrenunder5 + quintile_nowashnomat_fac +
+      (1 | clusters),
+    nAGQ = 1,
+    data = hr_analysis_dataset,
+    family = "binomial"
+  )
+
+water_coefs <- data.frame(coef(summary(water_imp_final)))
+water_imp_var <- unique(rownames(water_coefs))
+>>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
 
 
 water_imp_country <-
@@ -211,7 +206,10 @@ water_imp_country <-
 library(plyr)
 water_imp_country_coefs <- ldply(water_imp_country, data.frame)
 water_imp_country_coefs$vars <- water_imp_var
+<<<<<<< HEAD
 water_imp_country_coefs$outcome <- "water_imp"
+=======
+
 ###WATER LESS THAN 5 MINUTES FROM HOUSEHOLD  
 less5_final <-
   glmer(
@@ -222,9 +220,12 @@ less5_final <-
     family = "binomial"
   )
 
+<<<<<<< HEAD
 less5_coefs <- data.frame(coef(summary(less5_final)))
 less5_var <- unique(rownames(less5_coefs))
 
+=======
+>>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
 less5_final_country <-
   lapply(setNames(countries, countries), function(k) {
     y <- subset(hr_analysis_dataset, country_fac == k)
@@ -240,8 +241,11 @@ less5_final_country <-
   })
 
 less5_final_coefs <- ldply(less5_final_country, data.frame)
+<<<<<<< HEAD
 less5_final_coefs$vars <- less5_var
 less5_final_coefs$outcome <- "less5"
+=======
+>>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
 
 #IMPROVED SANITATION
 san_imp_final <-
@@ -253,9 +257,12 @@ san_imp_final <-
     family = "binomial"
   )
 
+<<<<<<< HEAD
 san_imp_coefs <- data.frame(coef(summary(san_imp_final)))
 san_imp_var <- unique(rownames(san_imp_coefs))
 
+=======
+>>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
 san_imp_final_country <-
   lapply(setNames(countries, countries), function(k) {
     y <- subset(hr_analysis_dataset, country_fac == k)
@@ -271,8 +278,11 @@ san_imp_final_country <-
   })
 
 san_imp_final_coefs <- ldply(san_imp_final_country, data.frame)
+<<<<<<< HEAD
 san_imp_final_coefs$vars <- san_imp_var
 san_imp_final_coefs$outcome <- "san_imp"
+=======
+>>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
 
 ###Improved housing 
 housing_imp_final <-
@@ -301,13 +311,14 @@ housing_imp_final_country <-
   })
 
 housing_imp_final_coefs <- ldply(housing_imp_final_country, data.frame)
+<<<<<<< HEAD
 housing_imp_final_coefs$vars <- housing_imp_var
 san_imp_final_coefs$outcome <- "housing_imp"
 
 
 
 
-
+=======
 
 library(sjPlot)
 plot_model(housing_imp_final)
@@ -317,6 +328,30 @@ library(GLMMadaptive)
 
 fm <- mixed_model(fixed= housing_imp ~ fish_factor, random = ~fish_factor | country_fac, data=hr_analysis_dataset,
                   family=binomial)
+>>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
+
+plot_data <- effectPlotData(fm,hr_analysis_dataset)
+
+<<<<<<< HEAD
+library(sjPlot)
+plot_model(housing_imp_final)
+=======
+library(lattice)
+>>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
+
+xyplot(pred + low + upp ~ fish_factor | country_fac, data=plot_data)
+
+<<<<<<< HEAD
+library(GLMMadaptive)
+
+fm <- mixed_model(fixed= housing_imp ~ fish_factor, random = ~fish_factor | country_fac, data=hr_analysis_dataset,
+                  family=binomial)
+=======
+library(effects)
+plot(predictorEffect("fish_factor", fm), type="response")
+
+all_hr_dredge <- rbind(water_imp_dredge, less_slope_dredge, san_imp_dredge, housing_imp_dredge)
+>>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
 
 plot_data <- effectPlotData(fm,hr_analysis_dataset)
 
@@ -329,7 +364,10 @@ plot(predictorEffect("fish_factor", fm), type="response")
 
 all_hr_dredge <- rbind(water_imp_dredge, less_slope_dredge, san_imp_dredge, housing_imp_dredge)
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
 p1 <- c(
   "fish_factorFishing community" = "Fishing community",
   "num_childrenunder5" = "Number of children <5 yoa" ,
