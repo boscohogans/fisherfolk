@@ -53,7 +53,7 @@ hr_select <-
 hr_select$fish_factor <- factor(
   hr_select$fishing_community,
   levels = c(0, 1),
-  labels = c("Non-Fishing community", "Fishing community")
+  labels = c("Non-Fishing_community", "Fishing_community")
 )
 hr_select$country_fac <-
   factor(
@@ -132,51 +132,14 @@ housing_imp_dredge$indicator <- "water_imp"
 water_imp_final <-
   glmer(
     water_imp ~ fish_factor  + num_childrenunder5 + quintile_nowashnomat_fac +
-      (1 | clusters) + (1+ fish_factor|country_fac),
+      (1 | clusters),
     nAGQ = 1,
     data = hr_analysis_dataset,
     family = "binomial"
   )
 
-
-water_imp_final <-
-  glmer(
-    water_imp ~ fishing_community  +
-      (fishing_community | country_),
-    data = hr_analysis_dataset,
-    family = "binomial"
-  )
-
-
-
-
-
-
-
-
-
-
-
-ci <- confint(water_imp_final, level = 0.95)
-
-
-confint(m, method = "boot", boot.type = "basic", seed = 123, nsim = 1000, .progress = "txt")
- ci <- confint(water_imp_final, method = "boot", boot.type = "basic", seed = 123, nsim=10, .progress = "txt")
-
-cV <- data.frame(lme4::ranef(water_imp_final, condVar = TRUE))
-
-plot(hr_analysis_dataset, asp="fill")
-
-coef(water_imp_final)$country_fac
-str(hr_analysis_dataset$fish_factor)
-#Overall values
-x<- data.frame(coef(summary(water_imp_final))[ , "Estimate"])
-#Values by country
-x2<- data.frame(coef(water_imp_final)$country_fac)
-#Random effects by country
-x3<- data.frame(ranef(water_imp_final)$country_fac)
-
-colMeans(ranef(water_imp_final)$country_fac)
+water_coefs <- data.frame(coef(summary(water_imp_final)))
+water_imp_var <- unique(rownames(water_coefs))
 
 summary(water_imp_final)
 
@@ -192,183 +155,111 @@ water_imp_country <-
         data = y,
         family = binomial
       )
+    data.frame(coef(summary(mod)))
   })
 
-hr_analysis_dataset$fit <- predict(water_imp_final)
-
-
-fixed.m1 <- data.frame(fixef(water_imp_final))
-
-test <- data.frame(summary(water_imp_final))
-
-
-library(ggplot2)
-ggplot(hr_analysis_dataset,aes(fish_factor, fit)) + 
-  #geom_line(aes(y=fit), size=0.8) +
-  geom_point(alpha = 0.3) + 
-  #geom_hline(yintercept=0, linetype="dashed") +
-  theme_bw()
-
-
-
-
-
-cc <- ranef(water_imp_final)$fish_factorFishing
-
-hr_analysis_dataset$ID <- seq.int(nrow(hr_analysis_dataset))
-library(data.table)
-dt <- data.table(hr_analysis_dataset, key="ID")
-
-fits <- lapply(unique(hr_analysis_dataset$country_),
-               function(z)lm(water_imp~fish_factor,
-                             data=dt[J(z),],y=T))
-
-
-fits <- lapply(unique(dt$country_),
-               function(z)lm(water_imp~fish_factor, data=dt[J(z),], y=T))
-
-
-by(hr_analysis_dataset$country_fac, function(x) lm(water_imp~fish_factor, data=x))
-
-
-
-
-library(lme4)
-water_imp_country = lapply(setNames(countries, countries), function(var) {
-  form = paste( var, "~ fish_factor  + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac +
-                (1 | clusters) + (1+ fish_factor | country_fac)")
-  glmer(form, data=hr_analysis_dataset,nAGQ = 0,family = binomial
-  )
-})
-
-
-#CI for mixed effects - http://www.remkoduursma.com/post/2017-06-15-bootpredictlme4/
-library(visreg)
-v <- visreg(hr_models_slope$water_imp, "fish_factor", by="country_fac", re.form=~(fish_factor|country_fac), type="contrast", plot=FALSE)
-plot(v)
-plot(v, overlay=TRUE)
-
-lme4:::predict.lmList4(water_imp_final, newdata=data.frame())
-
-library(merTools)
-
-PI.time <- system.time(
-  PI <- predictInterval(merMod = water_imp_final, newdata = hr_analysis_dataset,
-                        level = 0.95, n.sims = 1000,
-                        stat = "median", type="linear.prediction",
-                        include.resid.var = TRUE)
-)
-
-
-fixef(water_imp_final)
-VarCorr(water_imp_final)
-
-water_imp_AGQ10 <- update(water_imp_final, nAGQ=10)
-
-
-library(ggeffects)
-#https://strengejacke.github.io/ggeffects/articles/randomeffects.html
-
-water_imp_effects <- ggeffect(water_imp_final,"fish_factor" , type="re")
-water_imp_margins <-
-  ggpredict(water_imp_final, c("country_fac"), type = "re")
-water_imp_margins$indicator <- "water_imp"
+library(plyr)
+water_imp_country_coefs <- ldply(water_imp_country, data.frame)
+water_imp_country_coefs$vars <- water_imp_var
 
 ###WATER LESS THAN 5 MINUTES FROM HOUSEHOLD  
 less5_final <-
   glmer(
     less_than_5 ~ fish_factor + num_hh_members + num_childrenunder5  +
-      (1 | clusters) + (1 + fish_factor | country_fac),
-    data = hr_analysis_dataset,
-    nAGQ = 0,
-    family = "binomial"
-  )
-
-less5_noslope <-
-  glmer(
-    less_than_5 ~ fish_factor + num_hh_members + num_childrenunder5  +
       (1 | clusters),
     data = hr_analysis_dataset,
     nAGQ = 0,
     family = "binomial"
   )
 
-less5_effects <- ggeffect(less5_final,"country_fac" , type="re")
-less5_margins <-
-  ggpredict(less5_final, c("country_fac"), type = "re")
-less5_margins$indicator <- "less5"
+less5_final_country <-
+  lapply(setNames(countries, countries), function(k) {
+    y <- subset(hr_analysis_dataset, country_fac == k)
+    mod <-
+      glmer(
+        less_than_5 ~ fish_factor + num_hh_members + num_childrenunder5  +
+          (1 | clusters),
+        data = hr_analysis_dataset,
+        nAGQ = 0,
+        family = "binomial"
+      )
+    coef(summary(mod))
+  })
+
+less5_final_coefs <- ldply(less5_final_country, data.frame)
 
 #IMPROVED SANITATION
 san_imp_final <-
   glmer(
     san_imp ~ fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac +
-      (1 | clusters) + (1 + fish_factor | country_fac),
-    data = hr_analysis_dataset,
-    nAGQ = 0,
-    family = "binomial"
-  )
-
-san_imp_noslope <-
-  glmer(
-    san_imp ~ fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac +
       (1 | clusters),
     data = hr_analysis_dataset,
     nAGQ = 0,
     family = "binomial"
   )
 
-san_imp_effects <- ggeffect(san_imp_final,"country_fac" , type="re")
-san_imp_margins <-
-  ggpredict(san_imp_final, c("country_fac"), type = "re")
-san_imp_margins$indicator <- "san_imp"
+san_imp_final_country <-
+  lapply(setNames(countries, countries), function(k) {
+    y <- subset(hr_analysis_dataset, country_fac == k)
+    mod <-
+      glmer(
+        san_imp ~ fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac +
+          (1 | clusters),
+        data = hr_analysis_dataset,
+        nAGQ = 0,
+        family = "binomial"
+      )
+    coef(summary(mod))
+  })
 
+san_imp_final_coefs <- ldply(san_imp_final_country, data.frame)
 
 ###Improved housing 
 housing_imp_final <-
   glmer(
     housing_imp ~ fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac +
-      (1 | clusters) + (1+fish_factor|country_fac),
+      (1 | clusters)  ,
     data = hr_analysis_dataset,
     nAGQ = 0,
     family = "binomial"
   )
 
-housing_imp_noslope <-
-  glmer(
-    housing_imp ~ fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac +
-      (1 | clusters),
-    data = hr_analysis_dataset,
-    nAGQ = 0,
-    family = "binomial"
-  )
+housing_imp_final_country <-
+  lapply(setNames(countries, countries), function(k) {
+    y <- subset(hr_analysis_dataset, country_fac == k)
+    mod <-
+      glmer(
+        housing_imp ~ fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac +
+          (1 | clusters)  ,
+        data = hr_analysis_dataset,
+        nAGQ = 0,
+        family = "binomial"
+      )
+    coef(summary(mod))
+  })
 
-housing_imp_effects <- ggeffect(housing_imp_final,"country_fac" , type="re")
-housing_imp_margins <-
-  ggpredict(housing_imp_final, c("country_fac"), type = "re")
-housing_imp_margins$indicator <- "housing_imp"
-
-lattice::dotplot(ranef(housing_imp_final, condVar=T),strip=T,scales=list(reation='free'))$country_fac
-
-
-test <- as.data.frame(ranef(housing_imp_final))
-
-test <- hr_analysis_dataset %>% 
-  # save predicted values
-  mutate(pred_dist = fitted(housing_imp_final)) 
-
-
-# graph
-ggplot(aes(x=fish_factor, y=pred_dist, group=country_fac, color=country_fac)) + theme_classic() +
-  geom_line(size=1) 
-
-
-
-all_hr_margins <-rbind(water_imp_margins, less5_margins, san_imp_margins, housing_imp_margins)
-all_hr_dredge <- rbind(water_imp_dredge, less_slope_dredge, san_imp_dredge, housing_imp_dredge)
-
+housing_imp_final_coefs <- ldply(housing_imp_final_country, data.frame)
 
 library(sjPlot)
-tab_model(hr_models)
+plot_model(housing_imp_final)
+
+
+library(GLMMadaptive)
+
+fm <- mixed_model(fixed= housing_imp ~ fish_factor, random = ~fish_factor | country_fac, data=hr_analysis_dataset,
+                  family=binomial)
+
+plot_data <- effectPlotData(fm,hr_analysis_dataset)
+
+library(lattice)
+
+xyplot(pred + low + upp ~ fish_factor | country_fac, data=plot_data)
+
+library(effects)
+plot(predictorEffect("fish_factor", fm), type="response")
+
+all_hr_dredge <- rbind(water_imp_dredge, less_slope_dredge, san_imp_dredge, housing_imp_dredge)
+
 
 p1 <- c(
   "fish_factorFishing community" = "Fishing community",
