@@ -37,18 +37,7 @@ hr_select <-
   subset(
     hr_select,
     subset = hv000 %in% c(
-      "KE6",
-      "MW7",
-      "TZ7",
-      "UG7",
-      "ZM6",
-      "KE5",
-      "MW5",
-      "TZ5",
-      "UG6",
-      "ZM5"
-    )
-  )
+      "KE6",  "MW7",  "TZ7",  "UG7",  "ZM6",  "KE5",  "MW5",    "TZ5",    "UG6",      "ZM5"    )  )
 
 hr_select$fish_factor <- factor(
   hr_select$fishing_community,
@@ -71,7 +60,7 @@ hr_select$quintile_nowashnomat_fac <-
 
 hr_select$housing_imp <- 1 - (hr_select$housing_unimp)
 
-variables <-
+hr_outcomes <-
   c(
     "water_imp",
     "san_imp",
@@ -79,12 +68,13 @@ variables <-
     "housing_imp"
   )
 
-hr_select[variables] <- lapply(hr_select[variables], as.factor)
+hr_select[hr_outcomes] <- lapply(hr_select[hr_outcomes], as.factor)
 
 #Propensity score matching
 propensity_score <-
   read.csv("propensity_score_matching_20190923.csv")
 
+#Make clusters variable
 hr_select$clusters <-
   paste(hr_select$hv000, hr_select$hv021, sep = "_")
 
@@ -98,11 +88,7 @@ hr_analysis_dataset <-
     where propensity_score.weights=1"
   )
 
-hr_analysis_dataset$clusters <-
-  paste(hr_analysis_dataset$hv000, hr_analysis_dataset$hv021,  sep = "_")
-
 ##Build full model with all variables 
-hr_outcomes <- c("water_imp", "less_than_5", "san_imp", "housing_imp")
 library(lme4)
 hr_models <- lapply(setNames(hr_outcomes, hr_outcomes), function(var) {
   form = paste( var, "~ fish_factor  + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac +
@@ -112,248 +98,89 @@ hr_models <- lapply(setNames(hr_outcomes, hr_outcomes), function(var) {
   data.frame(coef(summary(mod)))
 })
 
-library(MuMIn)
-all_model_dredge <- purrr::map_df(hr_models,dredge)
-
-test <- dredge(hr_models$water_imp, fixed='fish_factor')
+# library(MuMIn)
+# all_model_dredge <- purrr::map_df(hr_models,dredge)
+# 
+# test <- dredge(hr_models$water_imp, fixed='fish_factor')
 
 #Model with lowest AIC
 #Define random intercept
-random_intercepts <- "(1|clusters)"
-
+hr_intercept <- "(1|clusters)"
+#Define models with lowest AIC
 water_imp_vars <- ("fish_factor + num_childrenunder5 + quintile_nowashnomat_fac")
 less5_vars <- ("fish_factor + num_hh_members + num_childrenunder5")
 san_imp_vars <- ("fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac")
 housing_imp_vars <- ("fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac")
 
+#Make a list of all final models 
+hr_response <- list(water_imp_vars, less5_vars, san_imp_vars, housing_imp_vars)
 
-all_response <- list(water_imp_vars, less5_vars, san_imp_vars, housing_imp_vars)
-outcomes <- c("water_imp", "less_than_5", "san_imp", "housing_imp")
-
-results <- lapply(1:4, function(i){
-  fixed <- paste0(all_response[i], collapse= "+")
-  formula <- as.formula(paste(outcomes[i], "~", fixed, "+", random_intercepts))
+hr_final_models <- lapply(1:4, function(i){
+  fixed <- paste0(hr_response[i], collapse= "+")
+  formula <- as.formula(paste(hr_outcomes[i], "~", fixed, "+", hr_intercept))
   print(formula)
-  glmer(formula, hr_analysis_dataset, family='binomial', nAGQ = 0)
+  mod <- glmer(formula, hr_analysis_dataset, family='binomial', nAGQ = 0)
+  #data.frame(coef(summary(mod)))
 })
 
+names(hr_final_models) <- paste(hr_outcomes, 1:4)
+
+#Make a list of all countries
 countries <- c("Kenya", "Malawi", "Tanzania", "Uganda", "Zambia")
 
-all_models_country <- lapply(1:4, function(i){
-  fixed <- paste0(all_response[i], collapse= "+")
-  formula <- as.formula(paste(outcomes[i], "~", fixed, "+", random_intercepts))
+hr_final_models_country <- lapply(1:4, function(i){
+  fixed <- paste0(hr_response[i], collapse= "+")
+  formula <- as.formula(paste(hr_outcomes[i], "~", fixed, "+", hr_intercept))
   print(formula)
   lapply(setNames(countries, countries), function(k) {
     y <- subset(hr_analysis_dataset, country_fac == k)
-  glmer(formula, y, family='binomial', nAGQ = 0)
+  mod <- glmer(formula, y, family='binomial', nAGQ = 0)
+  #data.frame(coef(summary(mod)))
 })
 })
+names(hr_final_models_country) <- paste(hr_outcomes, 1:4)
 
-
-
-
-water_coefs <- data.frame(coef(summary(water_imp_final)))
-water_imp_var <- unique(rownames(water_coefs))
-
-
-library(plyr)
-water_imp_country_coefs <- ldply(water_imp_country, data.frame)
-water_imp_country_coefs$vars <- water_imp_var
-<<<<<<< HEAD
-water_imp_country_coefs$outcome <- "water_imp"
-=======
-
-###WATER LESS THAN 5 MINUTES FROM HOUSEHOLD  
-less5_final <-
-  glmer(
-    less_than_5 ~ fish_factor + num_hh_members + num_childrenunder5  +
-      (1 | clusters),
-    data = hr_analysis_dataset,
-    nAGQ = 0,
-    family = "binomial"
-  )
-
-<<<<<<< HEAD
-less5_coefs <- data.frame(coef(summary(less5_final)))
-less5_var <- unique(rownames(less5_coefs))
-
-=======
->>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
-less5_final_country <-
-  lapply(setNames(countries, countries), function(k) {
-    y <- subset(hr_analysis_dataset, country_fac == k)
-    mod <-
-      glmer(
-        less_than_5 ~ fish_factor + num_hh_members + num_childrenunder5  +
-          (1 | clusters),
-        data = hr_analysis_dataset,
-        nAGQ = 0,
-        family = "binomial"
-      )
-    coef(summary(mod))
-  })
-
-less5_final_coefs <- ldply(less5_final_country, data.frame)
-<<<<<<< HEAD
-less5_final_coefs$vars <- less5_var
-less5_final_coefs$outcome <- "less5"
-=======
->>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
-
-#IMPROVED SANITATION
-san_imp_final <-
-  glmer(
-    san_imp ~ fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac +
-      (1 | clusters),
-    data = hr_analysis_dataset,
-    nAGQ = 0,
-    family = "binomial"
-  )
-
-<<<<<<< HEAD
-san_imp_coefs <- data.frame(coef(summary(san_imp_final)))
-san_imp_var <- unique(rownames(san_imp_coefs))
-
-=======
->>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
-san_imp_final_country <-
-  lapply(setNames(countries, countries), function(k) {
-    y <- subset(hr_analysis_dataset, country_fac == k)
-    mod <-
-      glmer(
-        san_imp ~ fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac +
-          (1 | clusters),
-        data = hr_analysis_dataset,
-        nAGQ = 0,
-        family = "binomial"
-      )
-    coef(summary(mod))
-  })
-
-san_imp_final_coefs <- ldply(san_imp_final_country, data.frame)
-<<<<<<< HEAD
-san_imp_final_coefs$vars <- san_imp_var
-san_imp_final_coefs$outcome <- "san_imp"
-=======
->>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
-
-###Improved housing 
-housing_imp_final <-
-  glmer(
-    housing_imp ~ fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac +
-      (1 | clusters)  ,
-    data = hr_analysis_dataset,
-    nAGQ = 0,
-    family = "binomial"
-  )
-housing_imp_coefs <- data.frame(coef(summary(housing_imp_final)))
-housing_imp_var <- unique(rownames(housing_imp_coefs))
-
-housing_imp_final_country <-
-  lapply(setNames(countries, countries), function(k) {
-    y <- subset(hr_analysis_dataset, country_fac == k)
-    mod <-
-      glmer(
-        housing_imp ~ fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac +
-          (1 | clusters)  ,
-        data = hr_analysis_dataset,
-        nAGQ = 0,
-        family = "binomial"
-      )
-    coef(summary(mod))
-  })
-
-housing_imp_final_coefs <- ldply(housing_imp_final_country, data.frame)
-<<<<<<< HEAD
-housing_imp_final_coefs$vars <- housing_imp_var
-san_imp_final_coefs$outcome <- "housing_imp"
-
-
-
-
-=======
-
-library(sjPlot)
-plot_model(housing_imp_final)
-
-
-library(GLMMadaptive)
-
-fm <- mixed_model(fixed= housing_imp ~ fish_factor, random = ~fish_factor | country_fac, data=hr_analysis_dataset,
-                  family=binomial)
->>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
-
-plot_data <- effectPlotData(fm,hr_analysis_dataset)
-
-<<<<<<< HEAD
-library(sjPlot)
-plot_model(housing_imp_final)
-=======
-library(lattice)
->>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
-
-xyplot(pred + low + upp ~ fish_factor | country_fac, data=plot_data)
-
-<<<<<<< HEAD
-library(GLMMadaptive)
-
-fm <- mixed_model(fixed= housing_imp ~ fish_factor, random = ~fish_factor | country_fac, data=hr_analysis_dataset,
-                  family=binomial)
-=======
-library(effects)
-plot(predictorEffect("fish_factor", fm), type="response")
-
-all_hr_dredge <- rbind(water_imp_dredge, less_slope_dredge, san_imp_dredge, housing_imp_dredge)
->>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
-
-plot_data <- effectPlotData(fm,hr_analysis_dataset)
-
-library(lattice)
-
-xyplot(pred + low + upp ~ fish_factor | country_fac, data=plot_data)
-
-library(effects)
-plot(predictorEffect("fish_factor", fm), type="response")
-
-all_hr_dredge <- rbind(water_imp_dredge, less_slope_dredge, san_imp_dredge, housing_imp_dredge)
-
-<<<<<<< HEAD
-
-=======
->>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
-p1 <- c(
-  "fish_factorFishing community" = "Fishing community",
+#Labels for tables
+hr_labels <- c(
+  "fish_factorFishing_community" = "Fishing community",
   "num_childrenunder5" = "Number of children <5 yoa" ,
   "num_hh_members" = "Number of household members" ,
   "quintile_nowashnomat_fac2" = "SES - Poorer" ,
   "quintile_nowashnomat_fac3" = "SES - Middle" ,
   "quintile_nowashnomat_fac4" = "SES - Richer" ,
-  "quintile_nowashnomat_fac5 (least deprived)" = "SES - Richest"
-)
+  "quintile_nowashnomat_fac5 (least deprived)" = "SES - Richest")
 
-hr_tables <- tab_model(
-  water_imp_final,
-  water_imp_noslope,
-  less5_final,
-  less5_noslope,
-  san_imp_final,
-  san_imp_noslope,
-  housing_imp_final,
-  housing_imp_noslope,
-  pred.labels = p1,
-  collapse.ci = TRUE,
-  dv.labels = c(
-    "Improved water source (random slope)",
+hr_var_labels <- c(
     "Improved water source",
-    "<5 minutes improved water (random slope)",
     "<5 minutes improved water ",
-    "Improved sanitation (random slope)",
     "Improved sanitation",
-    "Improved housing (random slope)",
     "Improved housing"
-  ),
-  p.style = "a"
-)
+  )
+
+library(sjPlot)
+hr_tables <- tab_model(hr_final_models, 
+                       pred.labels=hr_labels,
+                       collapse.ci=TRUE,
+                       dv.labels=hr_var_labels,
+                       show.icc=FALSE,
+                       show.re.var = FALSE,
+                       show.r2 = FALSE,
+                       prefix.labels = "varname",
+                       p.style="a")
+
+hr_tables_country <- lapply(1:4, function(i){
+  tab_model(final_models_country[[i]],
+            pred.labels=hr_labels,
+            collapse.ci=TRUE,
+            dv.labels=countries,
+            show.icc=FALSE,
+            show.re.var = FALSE,
+            show.r2 = FALSE,
+            terms = ("fish_factorFishing_community"),
+            p.style="a")
+})
+
+
 
 
 #Childhood data
@@ -383,9 +210,8 @@ hr_tables <- tab_model(
 #
 # write.csv(kr_select, "kr_select.csv")
 
-
+#############################################################
 #Children under 5
-
 kr_select <- read.csv("kr_select.csv")
 
 kr_select$fish_factor <- factor(
@@ -431,16 +257,13 @@ kr_select$hh_num_str <-
 kr_analysis_dataset <-
   merge(kr_select, propensity_score, by = "clusters")
 
-kr_outcomes <- c("diarrhea", "immun", "fever_2weeks", "ari")
+kr_outcomes <- c("immun","diarrhea", "fever_2weeks", "ari")
 
-kr_analysis_dataset2 <-na.omit(kr_analysis_dataset)
-
+##kr_analysis_dataset2 <-na.omit(kr_analysis_dataset)
 kr_models = lapply(setNames(kr_outcomes, kr_outcomes), function(var) {
   kr_form = paste(
-    var,
-    "~ fish_factor  + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac + medu_fac +
-    (1 | clusters) + (1 | hh_num_str) + (fish_factor | country_fac)"
-  )
+    var,"~ fish_factor  + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac + medu_fac + 
+       (1|clusters) + (1|hh_num_str)"   )
   glmer(
     kr_form,
     data = kr_analysis_dataset,
@@ -451,113 +274,50 @@ kr_models = lapply(setNames(kr_outcomes, kr_outcomes), function(var) {
 })
 
 
-
-diarrhea_dredge <- dredge(kr_models$diarrhea, fixed="fish_factor")
-diarrhea_dredge$indicator <- "diarrhea"
-immun_dredge <- dredge(kr_models$immun, fixed="fish_factor")
-immun_dredge$indicator <- "immun"
-fever_dredge <- dredge(kr_models$fever_2weeks, fixed="fish_factor")
-fever_dredge$indicator <- "fever"
-ari_dredge <- dredge(kr_models$ari, fixed="fish_factor")
-ari_dredge$indicator <- "ari"
-
+# diarrhea_dredge <- dredge(kr_models$diarrhea, fixed="fish_factor")
+# diarrhea_dredge$indicator <- "diarrhea"
+# immun_dredge <- dredge(kr_models$immun, fixed="fish_factor")
+# immun_dredge$indicator <- "immun"
+# fever_dredge <- dredge(kr_models$fever_2weeks, fixed="fish_factor")
+# fever_dredge$indicator <- "fever"
+# ari_dredge <- dredge(kr_models$ari, fixed="fish_factor")
+# ari_dredge$indicator <- "ari"
+#Define random intercept 
+kr_levels <- "(1|clusters) + (1|hh_num_str)"
 #Model with lowest AIC
-#DIARRHEA
-diarrhea_final<-
-  glmer(
-    diarrhea ~ fish_factor + num_hh_members + quintile_nowashnomat_fac  + medu_fac +
-      (1 | clusters) + (1 | hh_num_str),
-    data=kr_analysis_dataset,  nAGQ = 0,family = "binomial", na.action=na.omit
-  )
+diarrhea_vars <- ("fish_factor + num_hh_members + quintile_nowashnomat_fac  + medu_fac")
+immun_vars <- ("fish_factor + quintile_nowashnomat_fac  + medu_fac + num_childrenunder5")
+fever_vars <- ("fish_factor + num_hh_members  +  num_childrenunder5 + medu_fac")
+ari_vars <- ("fish_factor + medu_fac")
+
+kr_response <- list(diarrhea_vars, immun_vars, fever_vars, ari_vars)
+
+kr_final_models <- lapply(1:4, function(i){
+  fixed <- paste0(kr_response[i], collapse= "+")
+  formula <- as.formula(paste(kr_outcomes[i], "~", fixed, "+", kr_levels))
+  print(formula)
+  mod <- glmer(formula, kr_analysis_dataset, family='binomial', nAGQ = 0)
+  #data.frame(coef(summary(mod)))
+})
+
+names(kr_final_models) <- paste(kr_outcomes, 1:4)
+
+kr_final_models_country <- lapply(1:4, function(i){
+  fixed <- paste0(kr_response[i], collapse= "+")
+  formula <- as.formula(paste(kr_outcomes[i], "~", fixed, "+", random_intercepts))
+  print(formula)
+  lapply(setNames(countries, countries), function(k) {
+    y <- subset(kr_analysis_dataset, country_fac == k)
+    mod <- glmer(formula, y, family='binomial', nAGQ = 0)
+    #data.frame(coef(summary(mod)))
+  })
+})
+
+names(kr_final_models_country) <- paste(kr_outcomes, 1:4)
 
 
-diarrhea_margins <-
-  ggpredict(diarrhea_final, c("country_fac"), type = "re")
-diarrhea_margins$indicator <- "diarrhea"
-
-
-#VACCINATION
-immun_final <-
-  glmer(
-    immun ~ fish_factor + quintile_nowashnomat_fac  + medu_fac + num_childrenunder5 +
-      (1 | clusters) + (1 | hh_num_str) + (1 + fish_factor | country_fac),
-    data=kr_analysis_dataset,  nAGQ = 0,family = "binomial", na.action=na.omit
-  )
-
-immun_noslope <-
-  glmer(
-    immun ~ fish_factor + quintile_nowashnomat_fac  + medu_fac + num_childrenunder5 +
-      (1 | clusters) + (1 | hh_num_str) ,
-    data=kr_analysis_dataset,  nAGQ = 0,family = "binomial", na.action=na.omit
-  )
-
-
-immun_margins <-
-  ggpredict(immun_final, c("country_fac"), type = "re")
-immun_margins$indicator <- "vaccine"
-
-
-#FEVER
-fever_final <-
-  glmer(
-    fever_2weeks ~ fish_factor + num_hh_members  +  num_childrenunder5 + medu_fac +
-      (1 | clusters) + (1 | hh_num_str) + (1+ fish_factor | country_fac),
-    data=kr_analysis_dataset,  nAGQ = 0,family = "binomial", na.action=na.omit
-  )
-
-#FEVER
-fever_noslope <-
-  glmer(
-    fever_2weeks ~ fish_factor + num_hh_members  +  num_childrenunder5 + medu_fac +
-      (1 | clusters) + (1 | hh_num_str),
-    data=kr_analysis_dataset,  nAGQ = 0,family = "binomial", na.action=na.omit
-  )
-
-fever_margins <-
-  ggpredict(fever_final, c("country_fac"), type = "re")
-fever_margins$indicator <- "fever"
-
-#ARI
-ari_final <-
-  glmer(
-    ari ~ fish_factor + medu_fac +
-      (1 | clusters) + (1 | hh_num_str) + (1 + fish_factor | country_fac),
-    data=kr_analysis_dataset,  nAGQ = 0,family = "binomial", na.action=na.omit
-  )
-
-ari_noslope <-
-  glmer(
-    ari ~ fish_factor + medu_fac +
-      (1 | clusters) + (1 | hh_num_str) ,
-    data=kr_analysis_dataset,  nAGQ = 0,family = "binomial", na.action=na.omit
-  )
-
-ari_margins <-
-  ggeffect(ari_final, c("country_fac"), type = "re")
-ari_margins$indicator <- "ari"
-
-library(effects)
-
-effs <- as.data.frame(effect(c("fish_factor | country_fac"),ari_slope))
-
-preds <- merTools::predictInterval(ari_slope)
-
-lmerTest::ranova(ari_slope)
-
-
-
-kr_analysis_dataset %>% 
-  # save predicted values
-  mutate(pred_dist = fitted(ari_slope)) %>% 
-  # graph
-  ggplot(aes(x=fish_factor, y=pred_dist, group=country_fac, color=country_fac)) + theme_classic() +
-  geom_line(size=1) 
-
-
-#Append dataframes
-all_kr_margins <- rbind(diarrhea_margins, immun_margins, fever_margins, ari_margins)
-
-labels <- c(
+#Labels for tables
+kr_labels <- c(
   "fish_factorFishing community" = "Fishing community",
   "country_fac" = "Country",
   "num_childrenunder5" = "Number of children <5 yoa" ,
@@ -571,72 +331,42 @@ labels <- c(
   "medu_facHigher" = "Maternal education - Higher"
 )
 
-
-kr_tables <- tab_model(
-  diarrhea_final,
-  diarrhea_noslope,
-  immun_final,
-  immun_noslope,
-  fever_final,
-  fever_noslope,
-  ari_final, 
-  ari_noslope,
-  pred.labels = p1,
-  collapse.ci = TRUE,
-  dv.labels = c(
-    "Diarrhea (random slope)",
-    "Diarrhea",
-    "Vaccinated (random slope)",
-    "Vaccinated",
-    "Fever (random slope)",
-    "Fever",
-    "ARI (random slope)",
-    "ARI"
-  ),
-  p.style = "a"
+kr_var_labels <- c(
+  "Vaccinated",
+  "Diarrhea",
+  "Fever",
+  "ARI"
 )
 
+kr_tables <- tab_model(kr_final_models, 
+                       pred.labels=kr_labels,
+                       collapse.ci=TRUE,
+                       dv.labels=kr_var_labels,
+                       show.reflvl = TRUE,
+                       prefix.labels = "varname",
+                       show.icc=FALSE,
+                       show.re.var = FALSE,
+                       show.r2 = FALSE,
+                       p.style="a")
+
+kr_tables_country <- lapply(1:4, function(i){
+  tab_model(final_models_country[[i]],
+            pred.labels=hr_labels,
+            collapse.ci=TRUE,
+            dv.labels=countries,
+            show.icc=FALSE,
+            show.re.var = FALSE,
+            show.r2 = FALSE,
+            terms = ("fish_factorFishing_community"),
+            p.style="a")
+})
 
 
 
 
-all_models <- tab_model(
-  water_imp_final,
-  less5_slope,
-  san_imp_slope,
-  housing_imp_slope,
-  diarrhea_slope,
-  immun_slope,
-  fever_slope,
-  ari_slope,
-  pred.labels = labels,
-  collapse.ci = TRUE,
-  dv.labels = c("Improved water source","<5 minutes to improved water source","Improved sanitation","Improved housing",
-                "Diarrhea", "Vaccinations", "ARI", "Fever"),
-  rm.terms = "(Intercept)"
-)
 
-# p2 <- c(
-#   "fish" = "Fishing community",
-#   "num_childrenunder5" = "Number of children <5 yoa" ,
-#   "num_hh_members" = "Number of household members" ,
-#   "quintile_nowashnomat_fac2" = "SES - Poorer" ,
-#   "quintile_nowashnomat_fac3" = "SES - Middle" ,
-#   "quintile_nowashnomat_fac4" = "SES - Richer" ,
-#   "quintile_nowashnomat_fac5 (least deprived)" = "SES - Richest",
-#   "medu_facPrimary" = "Maternal education - Primary",
-#   "medu_facSecondary" = "Maternal education - Secondary",
-#   "medu_facHigher" = "Maternal education - Higher"
-# )
-#
-# tab_model(
-#   diarrhea,
-#   immun,
-#   ari,
-#   fever,
-#   pred.labels = p2,
-#   collapse.ci = TRUE,
-#   dv.labels = c("Diarrhea", "Vaccinations", "ARI", "Fever"),
-#   p.style = "a",
-#   rm.terms = "(Intercept)"
-# )
+
+
+
+
+
