@@ -121,87 +121,40 @@ test <- dredge(hr_models$water_imp, fixed='fish_factor')
 #Define random intercept
 random_intercepts <- "(1|clusters)"
 
-water_imp_vars <- c("fish_factor", "num_childrenunder5", "quintile_nowashnomat_fac")
-less5_vars <- c("fish_factor", "num_hh_members", "num_childrenunder5")
-san_imp_vars <- c("fish_factor", "num_hh_members", "num_childrenunder5", "quintile_nowashnomat_fac")
-housing_imp_vars <- c("fish_factor","num_hh_members", "num_childrenunder5", "quintile_nowashnomat_fac")
+water_imp_vars <- ("fish_factor + num_childrenunder5 + quintile_nowashnomat_fac")
+less5_vars <- ("fish_factor + num_hh_members + num_childrenunder5")
+san_imp_vars <- ("fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac")
+housing_imp_vars <- ("fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac")
+
 
 all_response <- list(water_imp_vars, less5_vars, san_imp_vars, housing_imp_vars)
 outcomes <- c("water_imp", "less_than_5", "san_imp", "housing_imp")
 
-all_models <- lapply(setNames(outcomes, outcomes), function(var) {
-  lapply(all_response, function(var2) {
-    fixed <- paste0(var2, collapse= "+")
-    formula <- as.formula(paste(var, "~", fixed, "+", random_intercepts))
-    glmer(formula, hr_analysis_dataset, family='binomial', nAGQ = 0)
-  })
+results <- lapply(1:4, function(i){
+  fixed <- paste0(all_response[i], collapse= "+")
+  formula <- as.formula(paste(outcomes[i], "~", fixed, "+", random_intercepts))
+  print(formula)
+  glmer(formula, hr_analysis_dataset, family='binomial', nAGQ = 0)
 })
-
-final_results <- c(all_models$water_imp[1], all_models$less_than_5[2], all_models$san_imp[3], all_models$housing_imp[4])
-
-water_imp_final <- all_models$water_imp[1]
-less5_final <- all_models$less_than_5[2]
-san_imp_final <- all_models$san_imp[3]
-housing_imp_final <- all_models$housing_imp[4]
-
-
-
-
 
 countries <- c("Kenya", "Malawi", "Tanzania", "Uganda", "Zambia")
 
-all_models_country <- lapply(setNames(outcomes, outcomes), function(var) {
-  lapply(all_response, function(var2) {
-    fixed <- paste0(var2, collapse= "+")
-    formula <- as.formula(paste(var, "~", fixed, "+", random_intercepts))
-    mod <- glmer(formula, hr_analysis_dataset, family='binomial', nAGQ = 0)
-    data.frame(coef(summary(mod)))
-  })
+all_models_country <- lapply(1:4, function(i){
+  fixed <- paste0(all_response[i], collapse= "+")
+  formula <- as.formula(paste(outcomes[i], "~", fixed, "+", random_intercepts))
+  print(formula)
+  lapply(setNames(countries, countries), function(k) {
+    y <- subset(hr_analysis_dataset, country_fac == k)
+  glmer(formula, y, family='binomial', nAGQ = 0)
+})
 })
 
 
 
-all_models <- list(water_imp_final, less5_final, san_imp_final, housing_imp_final)
-
-water_imp_country <-
-    lapply(setNames(outcomes, outcomes), function(var) {
-      lapply(setNames(countries, countries), function(k) {
-        y <- subset(hr_analysis_dataset, country_fac == k)
-      lapply(all_response, function(var2) {
-        fixed <- paste0(var2, collapse= "+")
-        formula <- as.formula(paste(var, "~", fixed, "+", random_intercepts))
-        glmer(formula, hr_analysis_dataset, family='binomial', nAGQ = 0)
-      })
-    })
-  })
-
-water_imp_final <-
-  glmer(
-    water_imp ~ fish_factor  + num_childrenunder5 + quintile_nowashnomat_fac +
-      (1 | clusters),
-    nAGQ = 1,
-    data = hr_analysis_dataset,
-    family = "binomial"
-  )
 
 water_coefs <- data.frame(coef(summary(water_imp_final)))
 water_imp_var <- unique(rownames(water_coefs))
->>>>>>> fbd40c84a7d52abf21f3475ef0f687453b54118b
 
-
-water_imp_country <-
-  lapply(setNames(countries, countries), function(k) {
-    y <- subset(hr_analysis_dataset, country_fac == k)
-    mod <-
-      glmer(
-        water_imp ~ fish_factor  + num_childrenunder5 + quintile_nowashnomat_fac +
-          (1 | clusters),
-        nAGQ = 0,
-        data = y,
-        family = binomial
-      )
-    data.frame(coef(summary(mod)))
-  })
 
 library(plyr)
 water_imp_country_coefs <- ldply(water_imp_country, data.frame)
@@ -480,6 +433,8 @@ kr_analysis_dataset <-
 
 kr_outcomes <- c("diarrhea", "immun", "fever_2weeks", "ari")
 
+kr_analysis_dataset2 <-na.omit(kr_analysis_dataset)
+
 kr_models = lapply(setNames(kr_outcomes, kr_outcomes), function(var) {
   kr_form = paste(
     var,
@@ -491,9 +446,11 @@ kr_models = lapply(setNames(kr_outcomes, kr_outcomes), function(var) {
     data = kr_analysis_dataset,
     nAGQ = 0,
     family = "binomial",
-    na.action = na.omit
+    na.action = "na.omit"
   )
 })
+
+
 
 diarrhea_dredge <- dredge(kr_models$diarrhea, fixed="fish_factor")
 diarrhea_dredge$indicator <- "diarrhea"
@@ -509,16 +466,10 @@ ari_dredge$indicator <- "ari"
 diarrhea_final<-
   glmer(
     diarrhea ~ fish_factor + num_hh_members + quintile_nowashnomat_fac  + medu_fac +
-      (1 | clusters) + (1 | hh_num_str) + (1 + fish_factor | country_fac),
+      (1 | clusters) + (1 | hh_num_str),
     data=kr_analysis_dataset,  nAGQ = 0,family = "binomial", na.action=na.omit
   )
 
-diarrhea_noslope<-
-  glmer(
-    diarrhea ~ fish_factor + num_hh_members + quintile_nowashnomat_fac  + medu_fac +
-      (1 | clusters) + (1 | hh_num_str) ,
-    data=kr_analysis_dataset,  nAGQ = 0,family = "binomial", na.action=na.omit
-  )
 
 diarrhea_margins <-
   ggpredict(diarrhea_final, c("country_fac"), type = "re")
