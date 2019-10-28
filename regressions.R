@@ -97,48 +97,64 @@ hr_analysis_dataset <-
     where propensity_score.weights=1"
   )
 
+write.csv(hr_analysis_dataset,"hr_data_20191027.csv")
+
+#Define random intercept
+hr_intercept <- "(1|clusters) + (1 + fish_factor | country_fac)"
+
+#All hr vars
+all_hr_vars <- c("fish_factor", "num_hh_members", "num_childrenunder5", "quintile_nowashnomat_fac")
 
 ##Build full model with all variables
 library(lme4)
 library(MuMIn)
 
-# options(na.action = na.fail)
-# hr_models <-
-#   lapply(setNames(hr_outcomes, hr_outcomes), function(var) {
-#     form = paste(
-#       var,
-#       "~ fish_factor  + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac +
-#       (1 | clusters)"
-#     )
-#     mod <-
-#       glmer(form,
-#             data = hr_analysis_dataset,
-#             nAGQ = 0,
-#             family = binomial)
-#     dredge(mod, fixed = "fish_factor")
-#     #data.frame(coef(summary(mod)))
-#   })
-# options(na.action = na.omit)
+options(na.action = na.fail)
+hr_models <-
+  lapply(setNames(hr_outcomes, hr_outcomes), function(var) {
+    fixed <- paste0(unlist(all_hr_vars), collapse= " + ")
+     formula <-
+       as.formula(paste(var, "~", fixed , "+", hr_intercept))
+    print(formula)
+    mod <-
+      glmer(formula,
+            data = hr_analysis_dataset,
+            nAGQ = 0,
+            family = binomial)
+    dredge(mod, fixed = "fish_factor")
+    #data.frame(coef(summary(mod)))
+  })
+options(na.action = na.omit)
 
+names(hr_models) <- paste(hr_outcomes, 1:4)
+
+hr_dredge_table <- dplyr::bind_rows(hr_models, .id="colum_label")
+
+  
 #Model with lowest AIC
-#Define random intercept
-hr_intercept <- "(1|clusters)"
+
 #Define models with lowest AIC
-water_imp_vars <-
-  ("fish_factor + num_childrenunder5 + quintile_nowashnomat_fac")
-less5_vars <- ("fish_factor + num_hh_members + num_childrenunder5")
-san_imp_vars <-
-  ("fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac")
-housing_imp_vars <-
-  ("fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac")
+# water_imp_vars <-
+#   ("fish_factor + num_childrenunder5 + quintile_nowashnomat_fac")
+# less5_vars <- ("fish_factor + num_hh_members + num_childrenunder5")
+# san_imp_vars <-
+#   ("fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac")
+# housing_imp_vars <-
+#   ("fish_factor + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac")
+
+water_imp_vars <- c("fish_factor", "num_childrenunder5", "quintile_nowashnomat_fac")
+less5_vars <- c("fish_factor", "num_hh_members", "num_childrenunder5")
+san_imp_vars <- c("fish_factor", "num_hh_members", "num_childrenunder5", "quintile_nowashnomat_fac")
+housing_imp_vars <- c("fish_factor","num_hh_members", "num_childrenunder5", "quintile_nowashnomat_fac")
+
 
 #Make a list of all final models
 hr_response <-
   list(water_imp_vars, less5_vars, san_imp_vars, housing_imp_vars)
 
 hr_final_models <- lapply(1:4, function(i) {
-  fixed <- paste0(hr_response[i], collapse = "+")
-  formula <-
+  fixed <- paste0(unlist(hr_response[i]), collapse= " + ")
+    formula <-
     as.formula(paste(hr_outcomes[i], "~", fixed, "+", hr_intercept))
   print(formula)
   mod <-
@@ -149,8 +165,20 @@ hr_final_models <- lapply(1:4, function(i) {
   #data.frame(coef(summary(mod)))
 })
 
+library("GLMMadaptive")
+fm <- mixed_model(fixed = water_imp ~ fish_factor, random = ~ fish_factor| country_fac, data = hr_analysis_dataset, family = binomial())
+
+marginal_coefs(fm)
+
 names(hr_final_models) <- paste(hr_outcomes, 1:4)
 
+# ##Marginal propbabilities
+# library(ggeffects)
+# ggemmeans(hr_final_models$`water_imp 1`, type="fe", "country_fac")
+# 
+# plot_model(hr_final_models$`water_imp 1`, type="re")
+# 
+#  x<-plot_model(hr_final_models$`water_imp 1`, type = "re",terms="fish_factor")
 #Make a list of all countries
 countries <- c("Kenya", "Malawi", "Tanzania", "Uganda", "Zambia")
 
@@ -198,8 +226,8 @@ tab_model(
   prefix.labels = "varname",
   p.style = "a",
   order.terms = c(1,2,8,3,4,5,6,7),
-  title='Household indicators',
-  file= paste0(outputs,"hr_full_model.html", sep="")
+  title='Household indicators'
+  #,  file= paste0(outputs,"hr_full_model.html", sep="")
 )
 
 hr_country_table <- lapply(1:4, function(i) {
@@ -330,21 +358,26 @@ kr_analysis_dataset <- subset(kr_propensity,!(is.na(medu_fac)))
 #Define random intercept
 kr_levels <- "(1|clusters) + (1|hh_num_str)"
 kr_outcomes <- c("immun", "diarrhea", "fever_2weeks", "ari")
-kr_fixed <-
-  (
-    "fish_factor  + num_hh_members + num_childrenunder5 + quintile_nowashnomat_fac + medu_fac"
-  )
+#All kr vars
+all_kr_vars <- c("fish_factor", "num_hh_members", "num_childrenunder5", "quintile_nowashnomat_fac", "medu_fac")
 
-# options(na.action = na.fail)
-# kr_final_models <- lapply(1:4, function(i) {
-#   formula <-
-#     as.formula(paste(kr_outcomes[i], "~", kr_fixed, "+", kr_levels))
-#   print(formula)
-#   cc <- kr_analysis_dataset %>% tidyr::drop_na(kr_outcomes[i])
-#   mod <- glmer(formula, cc, family = 'binomial', nAGQ = 0)
-#   dredge(mod, fixed = "fish_factor")
-# })
-# options(na.action = na.omit)
+
+options(na.action = na.fail)
+kr_models <- lapply(1:4, function(i) {
+  kr_fixed <- paste0(unlist(all_kr_vars), collapse= " + ")
+  formula <-
+    as.formula(paste(kr_outcomes[i], "~", kr_fixed, "+", kr_levels))
+  print(formula)
+  cc <- kr_analysis_dataset %>% tidyr::drop_na(kr_outcomes[i])
+  mod <- glmer(formula, cc, family = 'binomial', nAGQ = 0)
+  dredge(mod, fixed = "fish_factor")
+})
+options(na.action = na.omit)
+
+names(kr_models) <- paste(kr_outcomes, 1:4)
+
+kr_dredge_table <- dplyr::bind_rows(kr_models, .id="colum_label")
+
 
 #Model with lowest AIC
 diarrhea_vars <-
