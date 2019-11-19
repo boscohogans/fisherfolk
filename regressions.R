@@ -1,4 +1,4 @@
-setwd("C:/Users/idcvdken/Dropbox (LSoHaTM)/DK/Fisherpeople/Data/DHS/FileOut")
+##setwd("C:/Users/idcvdken/Dropbox (LSoHaTM)/DK/Fisherpeople/Data/DHS/FileOut")
 
 library(readstata13)
 library(dplyr)
@@ -15,55 +15,12 @@ library(naniar)
 
 #Propensity score matching
 propensity_score <-
-  read.csv("propensity_score_matching_20190923.csv")
-
+  read.csv("data//propensity_score_matching_20191119.csv")
 
 #HOUSEHOLD
-# hr <- read.dta13("gps_hr_20190923_dk.dta")
-#
-# hr_select <-
-#   dplyr::select(
-#     hr,
-#     hv000,
-#     fishing_community,
-#     country_,
-#     quintile_nowashnomat,
-#     num_hh_members,
-#     num_childrenunder5,
-#     hv000,
-#     hv021,
-#     water_piped,
-#     water_imp,
-#     san_imp,
-#     less_than_5,
-#     water_on_premises,
-#     housing_unimp
-#   )
-#
-# write.csv(hr_select, "hr_select.csv")
-#hr_select <- read.csv("hr_select.csv")
+hr <- read.dta13("data//gps_hr_20191119_dk.dta")
 
-#hr_select$housing_imp <- 1 - (hr$housing_unimp)
-#write.csv(hr_select, "analysis_dataset_20190923.csv")
-
-hr_select <- read.csv("analysis_dataset_20190923.csv")
-
-hr_select <-
-  subset(
-    hr_select,
-    subset = hv000 %in% c(
-      "KE6",
-      "MW7",
-      "TZ7",
-      "UG7",
-      "ZM6",
-      "KE5",
-      "MW5",
-      "TZ5",
-      "UG6",
-      "ZM5"
-    )
-  )
+hr_select <- hr
 
 hr_select$fish_factor <- factor(
   hr_select$fishing_community,
@@ -84,17 +41,12 @@ hr_select$quintile_nowashnomat_fac <-
     labels = c("1 (most deprived)", "2", "3", "4", "5 (least deprived)")
   )
 
-hr_select$num_hh_cat <- cut(hr_select$num_hh_members , 
-                                      breaks = c(-Inf,4,6,8,Inf) ,
-                                      labels = c("1-3","4-5","6-7","7+"),
-                                      right = FALSE)
+#Censor large households by assigning them a max value
+hist(hr_select$num_hh_members)
 
-hr_select$num_child_cat <- cut(hr_select$num_childrenunder5,
-                               breaks = c(0,1,2,Inf),
-                               labels = c("0", "1", "2+"),
-                               right = FALSE)
+hr_select <- hr_select %>% 
+  mutate(num_hh_censor = ifelse(num_hh_members<=10,num_hh_members, 11))
 
-hr_select$housing_imp <- 1 - (hr_select$housing_unimp)
 
 hr_outcomes <-
   c("water_imp",
@@ -123,98 +75,54 @@ hr_analysis_dataset <-
 hr_intercept <- "(1|clusters)"
 
 #All hr vars
-all_hr_vars <- c("fish_factor", "num_hh_cat", "num_child_cat" ,"quintile_nowashnomat_fac")
+all_hr_vars <- c("fish_factor", "num_hh_censor" ,"quintile_nowashnomat_fac")
 
 ##Build full model with all variables
 
-# options(na.action = na.fail)
-# hr_models <-
-#   lapply(setNames(hr_outcomes, hr_outcomes), function(var) {
-#     fixed <- paste0(unlist(all_hr_vars), collapse= " + ")
-#      formula <-
-#        as.formula(paste(var, "~", fixed , "+", hr_intercept))
-#     print(formula)
-#     mod <-
-#       glmer(formula,
-#             data = hr_analysis_dataset
-#             ,family = 'binomial'
-#             ,control=glmerControl(optimizer="bobyqa"))
-#     #dredge(mod, fixed = "fish_factor")
-#     #data.frame(coef(summary(mod)))
-#   })
-# options(na.action = na.omit)
-# 
-# names(hr_models) <- paste(hr_outcomes, 1:4)
+hr_models <-
+  lapply(setNames(hr_outcomes, hr_outcomes), function(var) {
+    fixed <- paste0(unlist(all_hr_vars), collapse= " + ")
+     formula <-
+       as.formula(paste(var, "~", fixed , "+", hr_intercept))
+    print(formula)
+    mod <-
+      glmer(formula,
+            data = hr_analysis_dataset
+            ,family = 'binomial'
+            ,control=glmerControl(optimizer="bobyqa"))
+    #dredge(mod, fixed = "fish_factor")
+    #data.frame(coef(summary(mod)))
+  })
 
-#hr_dredge_table <- dplyr::bind_rows(hr_models, .id="colum_label")
-
-#Model with lowest AIC
-water_imp_vars <- c("fish_factor", "num_child_cat", "quintile_nowashnomat_fac")
-san_imp_vars <- c("fish_factor", "num_hh_cat", "num_child_cat", "quintile_nowashnomat_fac")
-less5_vars <- c("fish_factor", "num_hh_cat", "num_child_cat")
-housing_imp_vars <- c("fish_factor","num_hh_cat", "num_child_cat", "quintile_nowashnomat_fac")
-
-#Make a list of all final models
-hr_response <-
-  list(water_imp_vars, less5_vars, san_imp_vars, housing_imp_vars)
-
-hr_final_models <- lapply(1:4, function(i) {
-  fixed <- paste0(unlist(hr_response[i]), collapse= " + ")
-    formula <-
-    as.formula(paste(hr_outcomes[i], "~", fixed, "+", hr_intercept))
-  print(formula)
-  mod <-
-    glmer(formula,
-          hr_analysis_dataset,
-          family = 'binomial',
-          control=glmerControl(optimizer="bobyqa"))
-  #data.frame(coef(summary(mod)))
-})
-
-names(hr_final_models) <- paste(hr_outcomes, 1:4)
-
-#water_conf <- exp(confint.merMod(hr_final_models$`water_imp 1`))
+names(hr_models) <- paste(hr_outcomes, 1:4)
 
 #Make a list of all countries
 countries <- c("Kenya", "Malawi", "Tanzania", "Uganda", "Zambia")
 
-hr_final_models_country <- lapply(1:4, function(i) {
-  fixed <- paste0(unlist(hr_response[i]), collapse = "+")
-  formula <-
-    as.formula(paste(hr_outcomes[i], "~", fixed, "+", hr_intercept))
-  print(formula)
-  lapply(setNames(countries, countries), function(k) {
-    y <- subset(hr_analysis_dataset, country_fac == k)
-    mod <- glmer(formula, y, family = 'binomial',
-                 control=glmerControl(optimizer="bobyqa"))
+hr_models_country <-
+  lapply(setNames(hr_outcomes, hr_outcomes), function(var) {
+    fixed <- paste0(unlist(all_hr_vars), collapse= " + ")
+    formula <-
+      as.formula(paste(var, "~", fixed , "+", hr_intercept))
+    print(formula)
+    lapply(setNames(countries, countries), function(k) {
+      y <- subset(hr_analysis_dataset, country_fac == k)
+    mod <-
+      glmer(formula,
+            data = y
+            ,family = 'binomial'
+            ,control=glmerControl(optimizer="bobyqa"))
+    #dredge(mod, fixed = "fish_factor")
+    #data.frame(coef(summary(mod)))
   })
-})
-names(hr_final_models_country) <- paste(hr_outcomes, 1:4)
+  })
 
-#Extract OR for each country 
- # all_results <- map(hr_final_models, tidy)
- # water_imp_results_list <- map(hr_final_models_country$`water_imp 1`, fixef)
- # 
- # water_imp_results_list <- map(hr_final_models_country$`water_imp 1`, tidy)
- # water_imp_results <- bind_rows(water_imp_results_list, .id="id")
- # 
- # water_imp_fish <- subset(water_imp_results, term=="fish_factorFishing_community")
- # water_imp_fish <- select(water_imp_fish,id, estimate, std.error)
- # water_imp_fish$OR <- (water_imp_fish$estimate)
- # water_imp_fish$LCI <- (water_imp_fish$estimate) - 1.96*((water_imp_fish$std.error))
- # water_imp_fish$UCI <- (water_imp_fish$estimate) + 1.96*((water_imp_fish$std.error))
- # 
+
 
 #Labels for tables
 hr_labels <- c(
   "fish_factorFishing_community" = "Fishing community",
-  "num_hh_members" = "Number of household members" ,
-  #"num_childrenunder5" = "Number of children <5 yoa" ,
-  "num_child_cat1" = "Number of children under 5 (1)",
-  "num_child_cat2+" = "Number of children (>=2)",
-  "num_hh_cat4-5" = "Number of household members (4-5)",
-  "num_hh_cat6-7" = "Number of household members (6-7)",
-  "num_hh_cat7+" = "Number of household members (7+)",
+  "num_hh_censor" = "Number of household members" ,
   "quintile_nowashnomat_fac2" = "SES - Poorer" ,
   "quintile_nowashnomat_fac3" = "SES - Middle" ,
   "quintile_nowashnomat_fac4" = "SES - Richer" ,
@@ -229,7 +137,7 @@ hr_var_labels <- c(
 )
 
 tab_model(
-  hr_final_models,
+  hr_models,
   pred.labels = hr_labels,
   collapse.ci = TRUE,
   dv.labels = hr_var_labels,
@@ -238,7 +146,7 @@ tab_model(
   show.r2 = FALSE,
   prefix.labels = "varname",
   p.style = "a",
-  order.terms=c(2,9,10,11,3,4,5,6,7,8,1),
+  order.terms=c(2,3,4,5,6,7,1),
   #order.terms = c(1,2,8,3,4,5,6,7),
   title='Household indicators'
   #,  file= paste0(outputs,"hr_full_model.html", sep="")
@@ -246,7 +154,7 @@ tab_model(
 
 hr_country_table <- lapply(1:4, function(i) {
   tab_model(
-    hr_final_models_country[[i]],
+    hr_models_country[[i]],
     pred.labels = hr_labels,
     collapse.ci = TRUE,
     dv.labels = countries,
@@ -264,31 +172,32 @@ hr_country_table <- lapply(1:4, function(i) {
 ##################################################
 ##################################################
 #Childhood data
-#kr <- read.dta13("gps_kr_20190923_dk.dta")
+kr <- read.dta13("gps_kr_20190923_dk.dta")
 
-# kr_select <- kr %>%
-#   dplyr::select(v000,
-#           fishing_community,
-#           country_,
-#           quintile_nowashnomat,
-#           v000,
-#           v002,
-#           v012,
-#           v021,
-#           v106,
-#           v136,
-#           v137,
-#           diarrhea,
-#           immun,
-#           ari,
-#           fever_2weeks) %>%
-#   dplyr::rename(mat_age=v012,
-#          medu=v106,
-#          num_hh_members=v136,
-#          num_childrenunder5=v137
-#          )
-#
-# write.csv(kr_select, "kr_select.csv")
+kr_select <- kr %>%
+  dplyr::select(v000,
+          fishing_community,
+          country_,
+          quintile_nowashnomat,
+          v000,
+          v002,
+          v012,
+          v021,
+          v106,
+          v135,
+          v136,
+          v137,
+          diarrhea,
+          immun,
+          ari,
+          fever_2weeks) %>%
+  dplyr::rename(mat_age=v012,
+         medu=v106,
+         num_hh_members=v136,
+         num_childrenunder5=v137
+         )
+
+write.csv(kr_select, "kr_select.csv")
 
 #############################################################
 #Children under 5
@@ -350,6 +259,9 @@ gg_miss_upset(kr_propensity)
 #Drop 2 records with missing education status of mother
 kr_analysis_dataset <- subset(kr_propensity,!(is.na(medu_fac)))
 
+#Drop if visitor to household
+#kr_analysis_dataset <- subset(kr_analysis_dataset,v135==1)
+
 #Change to factors 
 kr_select[kr_outcomes] <-
   lapply(kr_select[kr_outcomes], as.factor)
@@ -364,18 +276,19 @@ all_kr_vars <- c("fish_factor", "num_hh_cat", "num_child_cat", "quintile_nowashn
 
 #Aggregate to household level 
 
-# options(na.action = na.fail)
-# kr_models <- lapply(1:4, function(i) {
-#   kr_fixed <- paste0(unlist(all_kr_vars), collapse= " + ")
-#   formula <-
-#     as.formula(paste(kr_outcomes[i], "~", kr_fixed, "+", kr_levels))
-#   print(formula)
-#   cc <- kr_analysis_dataset %>% tidyr::drop_na(kr_outcomes[i])
-#   mod <- glmer(formula, cc, family = 'binomial'
-#                ,control=glmerControl(optimizer="bobyqa"))
-#   dredge(mod, fixed = "fish_factor")
-# })
-# options(na.action = na.omit)
+ options(na.action = na.fail)
+kr_models <- lapply(1:4, function(i) {
+  kr_fixed <- paste0(unlist(all_kr_vars), collapse= " + ")
+  formula <-
+    as.formula(paste(kr_outcomes[i], "~", kr_fixed, "+", kr_levels))
+  print(formula)
+  #cc <- kr_analysis_dataset %>% tidyr::drop_na(kr_outcomes[i])
+  cc <- kr_analysis_dataset[!rowSums(is.na(kr_analysis_dataset[cols])), ]
+  mod <- glmer(formula, cc, family = 'binomial'
+               ,control=glmerControl(optimizer="bobyqa"))
+  #dredge(mod, fixed = "fish_factor")
+})
+options(na.action = na.omit)
 # 
 # names(kr_models) <- paste(kr_outcomes, 1:4)
 # 
@@ -399,14 +312,19 @@ kr_final_models <- lapply(1:4, function(i) {
     as.formula(paste(kr_outcomes[i], "~", fixed, "+", kr_levels))
   print(formula)
   cc <- kr_analysis_dataset %>% tidyr::drop_na(kr_outcomes[i])
-  mod <-
-    glmer(formula,
-          cc,
-          family = 'binomial',control=glmerControl(optimizer="bobyqa"))
+   mod <-
+     glmer(formula,
+           cc,
+           family = 'binomial',control=glmerControl(optimizer="bobyqa"))
   #data.frame(coef(summary(mod)))
 })
 
 names(kr_final_models) <- paste(kr_outcomes, 1:4)
+
+ptm <- proc.time()
+conf <- confint.merMod(kr_final_models$`immun 1`, devtol=1e-7)
+proc.time() - ptm
+
 
 kr_final_models_country <- lapply(1:4, function(i) {
   fixed <- paste0(kr_response[i], collapse = "+")
@@ -428,8 +346,8 @@ kr_labels <- c(
   "fish_factorFishing_community" = "Fishing community",
   "country_fac" = "Country",
   #"num_childrenunder5" = "Number of children <5 yoa" ,
-  "num_child_cat1" = "Number of children under 5 (1)",
-  "num_child_cat2+" = "Number of children (>=2)",
+  "num_child_cat1" = "Children 5 and under in household (1)",
+  "num_child_cat2+" = "Children 5 and under in household (>=2)",
   #"num_hh_members" = "Number of household members" ,
   "num_hh_cat4-5" = "Number of household members (4-5)",
   "num_hh_cat6-7" = "Number of household members (6-7)",
