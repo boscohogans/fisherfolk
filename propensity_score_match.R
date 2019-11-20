@@ -15,7 +15,7 @@ hr$fish <- as.factor(hr$fishing_community)
 hr1_sum <- 
   hr %>%
   filter(hv000 %in% c("KE6", "MW7", "TZ7", "UG7", "ZM6")) %>%
-  select(hv000, hhid, fish, clusters, fishing_community,
+  select(hv000, hhid, fish, clusters,
          num_hh_members,asset_index_nowashnomat,country_) %>%
     group_by(clusters,fish) %>%
     dplyr::summarise(median_hhmembers=median(num_hh_members),
@@ -38,7 +38,7 @@ hr1_cc <- match.data(hr1_match)
 hr2_sum <- 
   hr %>%
   filter(hv000 %in% c("KE5", "MW5", "TZ5", "UG6", "ZM5")) %>%
-  select(hv000, hhid, clusters, fishing_community,
+  select(hv000, hhid, clusters, fish,
          num_hh_members,asset_index_nowashnomat,country_) %>%
   group_by(clusters,fish) %>%
   dplyr::summarise(median_hhmembers=median(num_hh_members),
@@ -47,7 +47,7 @@ hr2_sum <-
 
 hr2_sum <- as.data.frame(hr2_sum)
 #Match bases on hhmembers,quintile,country
-hr2_match <- matchit(fish ~ median_hhmembers + median_quintile + country_,
+hr2_match <- matchit(fish ~ median_hhmembers + mean_ses + country_,
                      data = hr2_sum, method = "nearest",
                      ratio = 3) 
 

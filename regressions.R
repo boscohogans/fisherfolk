@@ -7,78 +7,60 @@ library(ggplot2)
 library(performance)
 library(lme4)
 library(MuMIn)
-library(purr)
+library(purrr)
 library(sjPlot)
 library(htmltools)
 library(tableHTML)
 library(naniar)
-
-#Propensity score matching
-propensity_score <-
-  read.csv("data//propensity_score_matching_20191119.csv")
+library(data.table)
 
 #HOUSEHOLD
-hr <- read.dta13("data//gps_hr_20191119_dk.dta")
+hr <- read.dta13("data//gps_hr_20191120_dk.dta")
 
-hr_select <- hr
+##Need to orignial DHS asset index with generated asset index
+##http://www.sthda.com/english/wiki/correlation-matrix-a-quick-start-guide-to-analyze-format-and-visualize-a-correlation-matrix-using-r-software
+library("PerformanceAnalytics")
+#my_data <- hr[, c("hv271","asset_index_nowashnomat")]
+#chart.Correlation(my_data, histogram=TRUE, pch=19)
+#.77 and highly significant indicates strong correlation
 
-hr_select$fish_factor <- factor(
-  hr_select$fishing_community,
-  levels = c(0, 1),
-  labels = c("Non-Fishing_community", "Fishing_community")
-)
-hr_select$country_fac <-
-  factor(
-    hr_select$country_,
-    levels = c("KE", "MW", "TZ", "UG", "ZM"),
-    labels = c("Kenya", "Malawi", "Tanzania", "Uganda", "Zambia")
-  )
 
-hr_select$quintile_nowashnomat_fac <-
-  factor(
-    hr_select$quintile_nowashnomat,
-    levels = c("1", "2", "3", "4", "5"),
-    labels = c("1 (most deprived)", "2", "3", "4", "5 (least deprived)")
-  )
-
-#Censor large households by assigning them a max value
-hist(hr_select$num_hh_members)
-
-hr_select <- hr_select %>% 
-  mutate(num_hh_censor = ifelse(num_hh_members<=10,num_hh_members, 11))
-
+#Import propensity score
+propensity_score <-
+  fread("data//propensity_score_matching.csv")
 
 hr_outcomes <-
   c("water_imp",
+    "water_piped",
     "less_than_5",
     "san_imp",
     "housing_imp")
 
-hr_select[hr_outcomes] <- lapply(hr_select[hr_outcomes], as.factor)
+hr_select <- hr %>% 
+  #Make clusters variable
+  mutate(clusters= paste(hv000,hv021,sep="_")) %>%
+  #Join propensity score
+  left_join(select(propensity_score,clusters,weights), by="clusters") %>%
+  #Keep if included in propensity score matching 
+  filter(weights==1) %>%
+  mutate(fish_factor = as.factor(fishing_community)) %>%
+  #Censor large households by assigning them a max value
+  mutate(num_hh_censor = ifelse(hv009<=11,hv009, 12)) %>%
+  #Rescale SES
+  mutate(ses_rescaled = rescale(asset_index_nowashnomat)) %>%
+  #Change variables to factors
+  mutate_at(vars(hr_outcomes),funs(factor)) %>%
+  select(clusters,fish_factor,num_hh_censor,ses_rescaled,hr_outcomes,
+         water_piped, water_imp, san_imp, less_than_5, housing_imp)
 
-#Make clusters variable
-hr_select$clusters <-
-  paste(hr_select$hv000, hr_select$hv021, sep = "_")
-
-hr_analysis_dataset <-
-  sqldf(
-    "Select hr_select.*, propensity_score.weights
-    from hr_select
-    left join propensity_score
-    on hr_select.clusters=propensity_score.clusters
-    where propensity_score.weights=1"
-  )
-
-#write.csv(hr_analysis_dataset,"hr_data_20191027.csv")
 
 #Define random intercept
 hr_intercept <- "(1|clusters)"
 
 #All hr vars
-all_hr_vars <- c("fish_factor", "num_hh_censor" ,"quintile_nowashnomat_fac")
+all_hr_vars <- c("fish_factor", "num_hh_censor" ,"ses_rescaled")
 
 ##Build full model with all variables
-
 hr_models <-
   lapply(setNames(hr_outcomes, hr_outcomes), function(var) {
     fixed <- paste0(unlist(all_hr_vars), collapse= " + ")
@@ -87,17 +69,16 @@ hr_models <-
     print(formula)
     mod <-
       glmer(formula,
-            data = hr_analysis_dataset
+            data = hr_select
             ,family = 'binomial'
             ,control=glmerControl(optimizer="bobyqa"))
-    #dredge(mod, fixed = "fish_factor")
     #data.frame(coef(summary(mod)))
   })
 
 names(hr_models) <- paste(hr_outcomes, 1:4)
 
 #Make a list of all countries
-countries <- c("Kenya", "Malawi", "Tanzania", "Uganda", "Zambia")
+countries <- c("KE", "MW", "TZ", "UG", "ZM")
 
 hr_models_country <-
   lapply(setNames(hr_outcomes, hr_outcomes), function(var) {
@@ -106,18 +87,17 @@ hr_models_country <-
       as.formula(paste(var, "~", fixed , "+", hr_intercept))
     print(formula)
     lapply(setNames(countries, countries), function(k) {
-      y <- subset(hr_analysis_dataset, country_fac == k)
+      y <- subset(hr_select, country_ == k)
     mod <-
       glmer(formula,
             data = y
             ,family = 'binomial'
             ,control=glmerControl(optimizer="bobyqa"))
-    #dredge(mod, fixed = "fish_factor")
     #data.frame(coef(summary(mod)))
   })
   })
 
-
+names(hr_models_country) <- paste(hr_outcomes, 1:4)
 
 #Labels for tables
 hr_labels <- c(
@@ -130,7 +110,7 @@ hr_labels <- c(
 )
 
 hr_var_labels <- c(
-  "Improved water source",
+  "Piped water",
   "<5 minutes improved water ",
   "Improved sanitation",
   "Improved housing"
@@ -172,159 +152,59 @@ hr_country_table <- lapply(1:4, function(i) {
 ##################################################
 ##################################################
 #Childhood data
-kr <- read.dta13("gps_kr_20190923_dk.dta")
-
-kr_select <- kr %>%
-  dplyr::select(v000,
-          fishing_community,
-          country_,
-          quintile_nowashnomat,
-          v000,
-          v002,
-          v012,
-          v021,
-          v106,
-          v135,
-          v136,
-          v137,
-          diarrhea,
-          immun,
-          ari,
-          fever_2weeks) %>%
-  dplyr::rename(mat_age=v012,
-         medu=v106,
-         num_hh_members=v136,
-         num_childrenunder5=v137
-         )
-
-write.csv(kr_select, "kr_select.csv")
-
-#############################################################
-#Children under 5
-kr_select <- read.csv("kr_select.csv")
-
-kr_select$fish_factor <- factor(
-  kr_select$fishing_community,
-  levels = c(0, 1),
-  labels = c("Non-Fishing community", "Fishing_community")
-)
-
-kr_select$country_fac <-
-  factor(
-    kr_select$country_,
-    levels = c("KE", "MW", "TZ", "UG", "ZM"),
-    labels = c("Kenya", "Malawi", "Tanzania", "Uganda", "Zambia")
-  )
-
-kr_select$quintile_nowashnomat_fac <-
-  factor(
-    kr_select$quintile_nowashnomat,
-    levels = c("1", "2", "3", "4", "5"),
-    labels = c("1 (most deprived)", "2", "3", "4", "5 (least deprived)")
-  )
-
-kr_select$medu_fac <-
-  factor(
-    kr_select$medu,
-    levels = c("no education", "primary", "secondary", "higher", ""),
-    labels = c("No education", "Primary", "Secondary", "Higher", "Missing")
-  )
-
-kr_select$num_hh_cat <- cut(kr_select$num_hh_members , 
-                            breaks = c(-Inf,4,6,8,Inf) ,
-                            labels = c("1-3","4-5","6-7","7+"),
-                            right = FALSE)
-
-kr_select$num_child_cat <- cut(kr_select$num_childrenunder5,
-                               breaks = c(0,1,2,Inf),
-                               labels = c("0", "1", "2+"),
-                               right = FALSE)
+kr <- read.dta13("data//gps_kr_20191120_dk.dta")
 
 kr_outcomes <-
-  c("immun", "fever_2weeks", "diarrhea",  "ari")
+  c("not_immun", "fever_2weeks", "diarrhea",  "ari")
 
-#Propensity score matching
-kr_select$clusters <-
-  paste(kr_select$v000, kr_select$v021, sep = "_")
-
-kr_select$hh_num_str <-
-  paste(kr_select$clusters, kr_select$v002, sep = "_")
-
-kr_propensity <-
-  merge(kr_select, propensity_score, by = "clusters")
+kr_select <- kr %>% 
+  #Make clusters variable
+  mutate(clusters= paste(v000,v021,sep="_")) %>%
+  #Join propensity score
+  left_join(select(propensity_score,clusters,weights), by="clusters") %>%
+  #Keep if included in propensity score matching 
+  filter(weights==1) %>%
+  #Change fish community variable to factor
+  mutate(fish_factor = as.factor(fishing_community)) %>%
+  #Censor large households by assigning them a max value
+  mutate(num_hh_censor = is.na(v009), NA, ifelse(v009<=11,v009, 12)) %>%
+  #Censor years of education to deal with outliers
+  #Need to check what happens to the one missing value
+  mutate(medu_yrs_censor = is.na(v009), NA, ifelse(v012<=12,v012, 13)) %>%
+  #Rescale SES
+  mutate(ses_rescaled = rescale(asset_index_nowashnomat)) %>%
+  #Change variables to factors
+  mutate_at(vars(kr_outcomes),funs(factor)) %>%
+  #Rename maternal age variable
+  rename(mat_age=v012) %>%
+  #Make household variable
+  mutate(hh_num_str = paste(clusters, v002,sep="_")) %>%
+  select(clusters,hh_num_str,fish_factor,num_hh_censor,medu_yrs_censor,ses_rescaled,kr_outcomes,mat_age,
+         water_piped, water_imp, san_imp, less_than_5, housing_imp)
 
 #Check missingness
-gg_miss_upset(kr_propensity)
-
-#Drop 2 records with missing education status of mother
-kr_analysis_dataset <- subset(kr_propensity,!(is.na(medu_fac)))
-
-#Drop if visitor to household
-#kr_analysis_dataset <- subset(kr_analysis_dataset,v135==1)
-
-#Change to factors 
-kr_select[kr_outcomes] <-
-  lapply(kr_select[kr_outcomes], as.factor)
+gg_miss_upset(kr)
 
 #Define random intercept
 kr_levels <- "(1|clusters) + (1|hh_num_str)"
-#kr_levels <- "(1|clusters)"
 
-#kr_outcomes <- c("immun", "diarrhea", "fever_2weeks", "ari")
 #All kr vars
-all_kr_vars <- c("fish_factor", "num_hh_cat", "num_child_cat", "quintile_nowashnomat_fac", "medu_fac")
+all_kr_vars <- c("fish_factor", "num_hh_censor", "asset_index_nowashnomat", "medu_yrs_censor", "mat_age")
 
 #Aggregate to household level 
 
- options(na.action = na.fail)
+# options(na.action = na.fail)
 kr_models <- lapply(1:4, function(i) {
   kr_fixed <- paste0(unlist(all_kr_vars), collapse= " + ")
   formula <-
     as.formula(paste(kr_outcomes[i], "~", kr_fixed, "+", kr_levels))
   print(formula)
-  #cc <- kr_analysis_dataset %>% tidyr::drop_na(kr_outcomes[i])
-  cc <- kr_analysis_dataset[!rowSums(is.na(kr_analysis_dataset[cols])), ]
-  mod <- glmer(formula, cc, family = 'binomial'
+  mod <- glmer(formula, kr_analysis_dataset, family = 'binomial'
                ,control=glmerControl(optimizer="bobyqa"))
-  #dredge(mod, fixed = "fish_factor")
 })
-options(na.action = na.omit)
-# 
-# names(kr_models) <- paste(kr_outcomes, 1:4)
-# 
-# kr_dredge_table <- dplyr::bind_rows(kr_models, .id="colum_label")
 
-#Model with lowest AIC
-diarrhea_vars <-
-  ("fish_factor + quintile_nowashnomat_fac + num_hh_cat + medu_fac")
-immun_vars <-
-  ("fish_factor + quintile_nowashnomat_fac + num_hh_cat + num_child_cat + medu_fac ")
-fever_vars <-
-  ("fish_factor + quintile_nowashnomat_fac   +  num_child_cat + medu_fac")
-ari_vars <- 
-  ("fish_factor + medu_fac")
-
-kr_response <- list(fever_vars, diarrhea_vars, immun_vars, ari_vars)
-
-kr_final_models <- lapply(1:4, function(i) {
-  fixed <- paste0(kr_response[i], collapse = "+")
-  formula <-
-    as.formula(paste(kr_outcomes[i], "~", fixed, "+", kr_levels))
-  print(formula)
-  cc <- kr_analysis_dataset %>% tidyr::drop_na(kr_outcomes[i])
-   mod <-
-     glmer(formula,
-           cc,
-           family = 'binomial',control=glmerControl(optimizer="bobyqa"))
-  #data.frame(coef(summary(mod)))
-})
 
 names(kr_final_models) <- paste(kr_outcomes, 1:4)
-
-ptm <- proc.time()
-conf <- confint.merMod(kr_final_models$`immun 1`, devtol=1e-7)
-proc.time() - ptm
-
 
 kr_final_models_country <- lapply(1:4, function(i) {
   fixed <- paste0(kr_response[i], collapse = "+")
@@ -332,14 +212,28 @@ kr_final_models_country <- lapply(1:4, function(i) {
     as.formula(paste(kr_outcomes[i], "~", fixed, "+", kr_levels))
   print(formula)
   lapply(setNames(countries, countries), function(k) {
-    cc <- kr_analysis_dataset %>% tidyr::drop_na(kr_outcomes[i])
-    y <- subset(cc, country_fac == k)
-    mod <- glmer(formula, y,control=glmerControl(optimizer="bobyqa"))
-    #data.frame(coef(summary(mod)))
+    mod <- glmer(formula, kr_analysis_dataset,control=glmerControl(optimizer="bobyqa"))
   })
 })
 
 names(kr_final_models_country) <- paste(kr_outcomes, 1:4)
+
+#We also want to look at how household indicators impact childhood illness
+kr_with_hr <- c("fish_factor", "num_hh_censor", "asset_index_nowashnomat", "medu_yrs_censor", "mat_age", 
+                 "water_piped", "water_imp", "san_imp", "less_than_5", "housing_imp")
+
+
+kr_with_hr_models <- lapply(1:4, function(i) {
+  kr_fixed <- paste0(unlist(kr_with_hr), collapse= " + ")
+  formula <-
+    as.formula(paste(kr_outcomes[i], "~", kr_fixed, "+", kr_levels))
+  print(formula)
+  mod <- glmer(formula, kr_analysis_dataset, family = 'binomial'
+               ,control=glmerControl(optimizer="bobyqa"))
+})
+
+
+
 
 #Labels for tables
 kr_labels <- c(
