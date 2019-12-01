@@ -13,13 +13,14 @@ library(htmltools)
 library(tableHTML)
 library(naniar)
 library(data.table)
+library(scales)
 
 #HOUSEHOLD
 hr <- read.dta13("data//gps_hr_20191120_dk.dta")
 
 ##Need to orignial DHS asset index with generated asset index
 ##http://www.sthda.com/english/wiki/correlation-matrix-a-quick-start-guide-to-analyze-format-and-visualize-a-correlation-matrix-using-r-software
-library("PerformanceAnalytics")
+#library("PerformanceAnalytics")
 #my_data <- hr[, c("hv271","asset_index_nowashnomat")]
 #chart.Correlation(my_data, histogram=TRUE, pch=19)
 #.77 and highly significant indicates strong correlation
@@ -50,7 +51,7 @@ hr_select <- hr %>%
   mutate(ses_rescaled = rescale(asset_index_nowashnomat)) %>%
   #Change variables to factors
   mutate_at(vars(hr_outcomes),funs(factor)) %>%
-  select(clusters,fish_factor,num_hh_censor,ses_rescaled,hr_outcomes,
+  select(clusters,fish_factor,country_, num_hh_censor,ses_rescaled,hr_outcomes,
          water_piped, water_imp, san_imp, less_than_5, housing_imp)
 
 
@@ -116,7 +117,7 @@ hr_var_labels <- c(
   "Improved housing"
 )
 
-tab_model(
+final_table <- tab_model(
   hr_models,
   pred.labels = hr_labels,
   collapse.ci = TRUE,
