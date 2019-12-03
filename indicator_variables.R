@@ -46,6 +46,14 @@ hr_fish_gps[, san_imp :=   ifelse(grepl("uncovered", hv205), 0,
 #Not improved if shared
 hr_fish_gps[, san_imp := ifelse(hv225==1,0,san_imp)]
 
+#Hygiene variables 
+#https://dhsprogram.com/Data/Guide-to-DHS-Statistics/index.htm#t=Handwashing.htm%23Percentage_of_households3bc-1&rhtocid=_5_7_0
+#Place for washing AND water is available
+hr_fish_gps[, hwashobs := ifelse((grepl("^observed", hv230a)) & (grepl("water is available", hv230b)), 1,0)]
+
+#Place for washing AND water AND soap/detergent present
+hr_fish_gps[, hwashobs_soap := ifelse(hwashobs==1 & (grepl("yes", hv232b)), 1,0)]
+
 
 #Improved housing
 # https://www.nature.com/articles/s41586-019-1050-5.pdf
@@ -76,6 +84,8 @@ hr_fish_gps <- hr_fish_gps %>%
 hr_outcomes <-
   c("water_imp",
     "water_piped",
+    "hwashobs",
+    "hwashobs_soap",
     "less_than_5",
     "san_imp",
     "housing_imp")
@@ -88,6 +98,8 @@ f1 <- function(x) {
   ifelse(grepl("yes",y),1,
          ifelse(grepl("vacc",y),1,0))
 }
+#Change blanks to NA
+kr_fish_gps[kr_fish_gps==""] <- NA
 
 kr_fish_gps <- kr_fish_gps %>%
   mutate(diarrhea=f1(h11),
@@ -105,12 +117,16 @@ kr_fish_gps <- kr_fish_gps %>%
          h31c=tolower(h31c),
          ari=ifelse(h31b=="yes" & h31c %in% c("chest only", "both"),1,0),
          ari = ifelse(is.na(ari), 0, ari),
-         fever=f1(tolower(h22)),
-         bfeeding=f1(tolower(v404))) %>%
+         fever=f1(h22),
+         m4=tolower(m4),
+         bfeeding=ifelse(m4 %in% c("never breastfed", "99", "dk", "don't know", "inconsistent"),0,
+                         ifelse(is.na(m4),0,1))) %>%
   left_join(household_indicators, by=c("v000"="hv000", "v001"="hv001", "v002"="hv002"))
 
-kr_fish_gps %>%
-  tab(diarrhea)
-
+kr_outcomes <- c("diarrhea",
+                 "not_immun",
+                 "ari",
+                 "fever",
+                 "bfeeding")
 
 rm(household_indicators, finished_materials, f1, fa)

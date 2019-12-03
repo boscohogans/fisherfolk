@@ -24,24 +24,30 @@ corr <- chart.Correlation(my_data, histogram=TRUE, pch=19)
 
 #All hr vars
 all_hr_vars <- c("fish_factor", "num_hh_censor" ,"asset_index_nowashnomat")
+hr_scale <- all_hr_vars[-1]
 
 hr_select <- hr_fish_gps %>% 
   #Make clusters variable
-  #mutate(clusters= paste(hv000,hv021,sep="_")) %>%
+  mutate(clusters= paste(hv000,hv021,sep="_")) %>%
   #Join propensity score
   left_join(select(propensity_score,clusters,weights), by="clusters") %>%
   #Keep if included in propensity score matching 
   filter(weights==1) %>%
-  #mutate(fishing_community = ifelse(is.na(fishing_community), 0, fishing_community)) %>%
-  #mutate(fish_factor = as.factor(fishing_community)) %>%
+  mutate(fishing_community = ifelse(is.na(fishing_community), 0, fishing_community)) %>%
+  mutate(fish_factor = as.factor(fishing_community)) %>%
   #Censor large households by assigning them a max value
-  mutate(num_hh_censor = ifelse(num_hh_members<=11,num_hh_members, 12)) %>%
+  #mutate(num_hh_censor = ifelse(hv009<=11,hv009, 12)) %>%
   #Rescale SES
   #mutate_at(vars(num_hh_censor,asset_index_nowashnomat), funs(scale)) %>%
   #Change variables to factors
   mutate_at(vars(hr_outcomes),factor) %>%
-  select(clusters,fish_factor,country, num_hh_censor,asset_index_nowashnomat,hr_outcomes,
+  select(clusters,fish_factor,country, hv009,asset_index_nowashnomat,hr_outcomes,
          water_piped, water_imp, san_imp, less_than_5, housing_imp)
+
+#Scale variables
+hr_select_scale <- hr_select
+hr_select_scale[hr_scale] <- lapply(hr_select_scale[hr_scale],scale)
+
 
 #Define random intercept
 hr_intercept <- "(1|clusters)"
@@ -55,16 +61,31 @@ hr_models <-
     print(formula)
     mod <-
       glmer(formula,
-            data = hr_select
+            data = hr_select_scale
             ,family = 'binomial'
             ,control=glmerControl(optimizer="bobyqa"))
   })
 
-names(hr_models) <- paste(hr_outcomes, 1:5)
+names(hr_models) <- paste(hr_outcomes, 1:7)
+
+
+# stargazer(hr_models, type="text", title="Household characteristics", digits=2, df=FALSE)
+# 
+# library(broom)
+# test <- tidy(hr_models$`water_imp 1`, conf.int=TRUE)
+# 
+# ggplot(test, aes(estimate, term, color = term)) +
+#   geom_point() +
+#   geom_errorbarh(aes(xmin = conf.low, xmax = conf.high)) 
+# library(stargazer)
+# 
+# stargazer(hr_models$`water_imp 1`, type = "text",
+#           digits = 3,
+#           star.cutoffs = c(0.05, 0.01, 0.001),
+#           digit.separator = "")
 
 
 #Repeat for each country
-
 hr_models_country <-
   lapply(setNames(hr_outcomes, hr_outcomes), function(var) {
     fixed <- paste0(unlist(all_hr_vars), collapse= " + ")
@@ -72,7 +93,7 @@ hr_models_country <-
       as.formula(paste(var, "~", fixed , "+", hr_intercept))
     print(formula)
     lapply(setNames(countries, countries), function(k) {
-      y <- subset(hr_select, country == k)
+      y <- subset(hr_select_scale, country == k)
     mod <-
       glmer(formula,
             data = y
@@ -81,19 +102,15 @@ hr_models_country <-
   })
   })
 
-names(hr_models_country) <- paste(hr_outcomes, 1:5)
+names(hr_models_country) <- paste(hr_outcomes, 1:7)
 
 
 ##################################################
 ##################################################
 #Childhood data
-#kr <- read.dta13("data//gps_kr_20191120_dk.dta")
-
-kr_outcomes <-
-  c("not_immun", "fever", "diarrhea",  "ari")
-
 #All kr vars
-all_kr_vars <- c("fish_factor", "num_hh_censor", "asset_index_nowashnomat", "medu_yrs_censor", "mat_age")
+all_kr_vars <- c("fish_factor", "num_hhmembers", "asset_index_nowashnomat", "medu_yrs", "mat_age")
+kr_scale <- all_kr_vars[-1]
 
 kr_select <- kr_fish_gps %>% 
   #Make clusters variable
@@ -106,24 +123,30 @@ kr_select <- kr_fish_gps %>%
   mutate(fishing_community = ifelse(is.na(fishing_community), 0, fishing_community)) %>%
   mutate(fish_factor = as.factor(fishing_community)) %>%
   #Censor large households by assigning them a max value
-  mutate(num_hh_censor = ifelse(v009<=11,v009, 12)) %>%
+  rename(num_hhmembers=v009) %>% 
+  #mutate(num_hh_censor = ifelse(v009<=11,v009, 12)) %>%
   #Censor years of education to deal with outliers
   #Need to check what happens to the one missing value
-  mutate(medu_yrs_censor =ifelse(v133<=12,v133, 13)) %>%
+  #mutate(medu_yrs_censor =ifelse(v133<=12,v133, 13)) %>%
+  rename(medu_yrs=v133) %>%
+  filter(!is.na(medu_yrs)) %>%
   mutate(mat_age = as.numeric(v012)) %>%
   #Change variables to factors
   mutate_at(vars(kr_outcomes),funs(factor)) %>%
   #Need to rescale variables
-  mutate_at(vars(num_hh_censor,asset_index_nowashnomat, medu_yrs_censor, mat_age), funs(scale, center=TRUE, scale=TRUE)) %>%
+  #mutate_at(vars(num_hh_censor,asset_index_nowashnomat, medu_yrs_censor, mat_age), funs(scale, center=TRUE, scale=TRUE)) %>%
   #Rename maternal age variable
-  #mutate_at(vars(num_hh_censor, asset_index_nowashnomat, medu_yrs_censor, mat_age), scale(all_kr_vars)) %>%
+  #mutate_at(vars(for_rescale), scales::rescale(for_rescale)) %>%
   #Make household variable
   mutate(hh_num_str = paste(clusters, v002,sep="_")) %>%
   select(clusters, hh_num_str,all_kr_vars,kr_outcomes, hr_outcomes)
 
+#Scale variables
+kr_select_scale <- kr_select
+kr_select_scale[kr_scale] <- lapply(kr_select_scale[kr_scale],scale)
 
 #Check missingness
-gg_miss_upset(kr_select)
+gg_miss_upset(kr_select_scale)
 
 #Define random intercept
 kr_intercept <- "(1|clusters) + (1|hh_num_str)"
@@ -137,7 +160,7 @@ kr_models <-
     print(formula)
     mod <-
       glmer(formula,
-            data = kr_select
+            data = kr_select_scale
             ,family = 'binomial'
             ,control=glmerControl(optimizer="bobyqa"))
   })
@@ -150,7 +173,7 @@ kr_models <- lapply(1:4, function(i) {
   formula <-
     as.formula(paste(kr_outcomes[i], "~", kr_fixed, "+", kr_intercept))
   print(formula)
-  mod <- glmer(formula, kr_select, family = 'binomial'
+  mod <- glmer(formula, kr_select_scale, family = 'binomial'
                ,control=glmerControl(optimizer="bobyqa"))
 })
 
@@ -167,7 +190,7 @@ kr_with_hr_models <- lapply(1:4, function(i) {
   formula <-
     as.formula(paste(kr_outcomes[i], "~", kr_fixed, "+", kr_intercept))
   print(formula)
-  mod <- glmer(formula, kr_select, family = 'binomial'
+  mod <- glmer(formula, kr_select_scale, family = 'binomial'
                ,control=glmerControl(optimizer="bobyqa"))
 })
 
