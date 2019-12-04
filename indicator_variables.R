@@ -58,16 +58,19 @@ hr_fish_gps[, hwashobs_soap := ifelse(hwashobs==1 & (grepl("yes", hv232b)), 1,0)
 #Improved housing
 # https://www.nature.com/articles/s41586-019-1050-5.pdf
 #Number of people per bedroom
-hr_fish_gps[, ppl_per_bedroom := round((hv009 / hv216), 0)]
-hr_fish_gps[, three_per_bedroom := ifelse((hv009 / hv216 > 3), 1, 0)]
+#hr_fish_gps[, ppl_per_bedroom := round((hv009 / hv216), 0)]
+hr_fish_gps[, ppl_per_bedroom := ifelse((!is.na(hv009) & !is.na(hv216)),(hv009/hv216),0)]
+hr_fish_gps$ppl_per_bedroom <- ifelse(!is.finite(hr_fish_gps$ppl_per_bedroom),0,hr_fish_gps$ppl_per_bedroom)
+
+hr_fish_gps[, three_per_bedroom := ifelse((ppl_per_bedroom > 3), 1, 0)]
 
 finished_materials <- c("concrete", "cement", "asbestos", "tiles", "shingles", "iron", 
                         "ceramic","metal", "sheets", "bricks", "parquet", "vinyl", "zinc","stone blocks", "carpet", "polished wood", "\\bcovered adobe\\b", "3")
 #Tanzania has numbers instead of labels for round 7. Finished materials start with "3"
 
 fa <- function(x) {
-  tolower(x)
-  ifelse(grepl(paste(finished_materials, collapse="|"),x),1,0)
+  y <- tolower(x)
+  ifelse(grepl(paste(finished_materials, collapse="|"),y),1,0)
 }
 
 hr_fish_gps <- hr_fish_gps %>%

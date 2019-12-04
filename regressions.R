@@ -23,12 +23,13 @@ corr <- chart.Correlation(my_data, histogram=TRUE, pch=19)
 #     "housing_imp")
 
 #All hr vars
-all_hr_vars <- c("fish_factor", "num_hh_censor" ,"asset_index_nowashnomat")
+all_hr_vars <- c("fish_factor", "num_hhmembers" ,"asset_index_nowashnomat")
 hr_scale <- all_hr_vars[-1]
 
 hr_select <- hr_fish_gps %>% 
   #Make clusters variable
   mutate(clusters= paste(hv000,hv021,sep="_")) %>%
+  rename(num_hhmembers=hv009) %>%
   #Join propensity score
   left_join(select(propensity_score,clusters,weights), by="clusters") %>%
   #Keep if included in propensity score matching 
@@ -41,7 +42,7 @@ hr_select <- hr_fish_gps %>%
   #mutate_at(vars(num_hh_censor,asset_index_nowashnomat), funs(scale)) %>%
   #Change variables to factors
   mutate_at(vars(hr_outcomes),factor) %>%
-  select(clusters,fish_factor,country, hv009,asset_index_nowashnomat,hr_outcomes,
+  select(clusters,fish_factor,country, num_hhmembers,asset_index_nowashnomat,hr_outcomes,
          water_piped, water_imp, san_imp, less_than_5, housing_imp)
 
 #Scale variables
@@ -62,27 +63,22 @@ hr_models <-
     mod <-
       glmer(formula,
             data = hr_select_scale
-            ,family = 'binomial'
-            ,control=glmerControl(optimizer="bobyqa"))
+            ,family = 'binomial')
+            #,control=glmerControl(optimizer="bobyqa"))
   })
 
 names(hr_models) <- paste(hr_outcomes, 1:7)
 
+#Extract coefficients to table
+hr_models_tabl <- map(hr_models, tidy, conf.int=TRUE)
+names(hr_models_tabl) <- paste(hr_outcomes, 1:7)
+#bind rows together
+hr_results <- rbindlist(hr_models_tabl, idcol="id")
+hr_results <- as.data.frame(hr_results)
 
-# stargazer(hr_models, type="text", title="Household characteristics", digits=2, df=FALSE)
-# 
-# library(broom)
-# test <- tidy(hr_models$`water_imp 1`, conf.int=TRUE)
-# 
-# ggplot(test, aes(estimate, term, color = term)) +
-#   geom_point() +
-#   geom_errorbarh(aes(xmin = conf.low, xmax = conf.high)) 
-# library(stargazer)
-# 
-# stargazer(hr_models$`water_imp 1`, type = "text",
-#           digits = 3,
-#           star.cutoffs = c(0.05, 0.01, 0.001),
-#           digit.separator = "")
+for_exp <- c("estimate", "conf.low", "conf.high")
+
+hr_results[for_exp] <- lapply(hr_results[for_exp],exp)
 
 
 #Repeat for each country
@@ -97,12 +93,24 @@ hr_models_country <-
     mod <-
       glmer(formula,
             data = y
-            ,family = 'binomial'
-            ,control=glmerControl(optimizer="bobyqa"))
+            ,family = 'binomial')
+            #,control=glmerControl(optimizer="bobyqa"))
   })
   })
 
 names(hr_models_country) <- paste(hr_outcomes, 1:7)
+
+water_imp_country_table <- map(hr_models_country$`water_imp 1`, tidy, conf.int=TRUE)
+names(water_imp_country_table) <- paste(countries, 1:5)
+
+water_imp_results <- rbindlist(water_imp_country_table, idcol="id")
+water_imp_results <-water_imp_results[complete.cases(water_imp_results[, for_exp, with=FALSE])]
+out_cols = paste("log", for_exp, sep = ".")
+
+water_imp_results[,exp(estimate), exp(conf.low), exp(conf.high)] 
+
+
+water_imp_results[,c("estimate", "conf.low"):=list(exp(estimate),exp(conf.low))]
 
 
 ##################################################
@@ -139,14 +147,14 @@ kr_select <- kr_fish_gps %>%
   #mutate_at(vars(for_rescale), scales::rescale(for_rescale)) %>%
   #Make household variable
   mutate(hh_num_str = paste(clusters, v002,sep="_")) %>%
-  select(clusters, hh_num_str,all_kr_vars,kr_outcomes, hr_outcomes)
+  select(clusters, hh_num_str,all_kr_vars,kr_outcomes, hr_outcomes, country)
 
 #Scale variables
 kr_select_scale <- kr_select
 kr_select_scale[kr_scale] <- lapply(kr_select_scale[kr_scale],scale)
 
 #Check missingness
-gg_miss_upset(kr_select_scale)
+#gg_miss_upset(kr_select_scale)
 
 #Define random intercept
 kr_intercept <- "(1|clusters) + (1|hh_num_str)"
@@ -161,37 +169,48 @@ kr_models <-
     mod <-
       glmer(formula,
             data = kr_select_scale
-            ,family = 'binomial'
-            ,control=glmerControl(optimizer="bobyqa"))
+            ,family = 'binomial')
+            #,control=glmerControl(optimizer="bobyqa"))
   })
 
-names(kr_models) <- paste(kr_outcomes, 1:4)
+names(kr_models) <- paste(kr_outcomes, 1:5)
 
-# options(na.action = na.fail)
-kr_models <- lapply(1:4, function(i) {
-  kr_fixed <- paste0(unlist(all_kr_vars), collapse= " + ")
-  formula <-
-    as.formula(paste(kr_outcomes[i], "~", kr_fixed, "+", kr_intercept))
-  print(formula)
-  mod <- glmer(formula, kr_select_scale, family = 'binomial'
-               ,control=glmerControl(optimizer="bobyqa"))
-})
+#Repeat for each country
+kr_models_country <-
+  lapply(setNames(kr_outcomes, kr_outcomes), function(var) {
+    fixed <- paste0(unlist(all_kr_vars), collapse= " + ")
+    formula <-
+      as.formula(paste(var, "~", fixed , "+", hr_intercept))
+    print(formula)
+    lapply(setNames(countries, countries), function(k) {
+      y <- subset(kr_select_scale, country == k)
+      mod <-
+        glmer(formula,
+              data = y
+              ,family = 'binomial')
+      #,control=glmerControl(optimizer="bobyqa"))
+    })
+  })
+
+names(kr_models_country) <- paste(kr_outcomes, 1:5)
 
 
-names(kr_final_models) <- paste(kr_outcomes, 1:4)
 
 #We also want to look at how household indicators impact childhood illness
-kr_with_hr <- c("fish_factor", "num_hh_censor", "asset_index_nowashnomat", "medu_yrs_censor", "mat_age", 
-                 "water_piped", "water_imp", "san_imp", "less_than_5", "housing_imp")
 
 
-kr_with_hr_models <- lapply(1:4, function(i) {
+all_kr_vars <- c("fish_factor", "num_hhmembers", "asset_index_nowashnomat", "medu_yrs", "mat_age")
+
+kr_with_hr <- c(all_kr_vars, hr_outcomes)
+
+
+kr_with_hr_models <- lapply(1:2, function(i) {
   kr_fixed <- paste0(unlist(kr_with_hr), collapse= " + ")
   formula <-
     as.formula(paste(kr_outcomes[i], "~", kr_fixed, "+", kr_intercept))
   print(formula)
-  mod <- glmer(formula, kr_select_scale, family = 'binomial'
-               ,control=glmerControl(optimizer="bobyqa"))
+  mod <- glmer(formula, kr_select_scale, family = 'binomial')
+               #,control=glmerControl(optimizer="bobyqa"))
 })
 
 

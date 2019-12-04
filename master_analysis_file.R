@@ -5,6 +5,7 @@ library(data.table)
 library(naniar)
 library(MatchIt)
 library(scales)
+library(broom.mixed)
 
 
 #Building dataset
@@ -20,4 +21,4 @@ source("propensity_score_match.R")
 #source("inequality_curves.R")
 
 #Regressions
-#source("regressions.R")
+source("regressions.R")
