@@ -88,7 +88,6 @@ hr_outcomes <-
   c("water_imp",
     "water_piped",
     "hwashobs",
-    "hwashobs_soap",
     "less_than_5",
     "san_imp",
     "housing_imp")
@@ -129,7 +128,6 @@ kr_fish_gps <- kr_fish_gps %>%
 kr_outcomes <- c("diarrhea",
                  "not_immun",
                  "ari",
-                 "fever",
-                 "bfeeding")
+                 "fever")
 
 rm(household_indicators, finished_materials, f1, fa)

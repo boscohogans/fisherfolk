@@ -1,134 +1,56 @@
 #Concentration curve
 
-
-hr_fish_gps %>%
-  arrange(asset_index_nowashnomat) %>%
-  mutate(cumulative=cumsum(water_imp)/sum(water_imp),
-         ses_decile=ntile(asset_index_nowashnomat,100))%>%
-  group_by(ses_decile) %>%
-  select(ses_decile, cumulative, country, fishing_community) %>%
-  slice(n()) %>%
-  ggplot(aes(x=ses_decile, y=cumulative)) +
-  geom_line() 
-
-
-
-library(scales)
-vars_ses <- hr_fish_gps %>%
-  arrange(asset_index_nowashnomat) %>%
-  mutate(ses_percent = ntile(asset_index_nowashnomat,1000)) %>%
-           select(water_imp,water_piped,san_imp,housing_imp, asset_index_nowashnomat,fishing_community,country)
-
-library(IC2)
-
-curveConcent(vars_ses[,"water_imp"], y=vars_ses[,"asset_index_nowashnomat"], col="red")
-curveConcent(vars_ses[,"water_piped"], y=vars_ses[,"asset_index_nowashnomat"], col="blue", add=TRUE)
-curveConcent(vars_ses[,"san_imp"], y=vars_ses[,"asset_index_nowashnomat"], col="green", add=TRUE)
-curveConcent(vars_ses[,"housing_imp"], y=vars_ses[,"asset_index_nowashnomat"], col="orange", add=TRUE)
-title(main="Overall access to household facilities")
-legend("topleft", legend = c("Improved water source", "Piped water source", "Improved sanitation", "Improved housing"), 
-       col=c("red", "blue", "green", "orange"), lty=rep(1, 4))
-
-
-library(reldist)
-ginicities <- aggregate(housing_imp ~ fishing_community,
-                        data = vars_ses,
-                        FUN = "gini")
-
-fish_ses <- vars_ses %>%
-  #arrange(asset_index_nowashnomat) %>%
-  #mutate(ses_percent = ntile(asset_index_nowashnomat,100)) %>%
-  filter(fishing_community==1) %>%
-  select(water_imp,water_piped,san_imp,housing_imp, asset_index_nowashnomat, country)
-
-non_fish_ses <- vars_ses %>%
-  #arrange(asset_index_nowashnomat) %>%
-  #mutate(ses_percent = ntile(asset_index_nowashnomat,100)) %>%
-  filter(is.na(fishing_community)) %>%
-  select(water_imp,water_piped,san_imp,housing_imp, asset_index_nowashnomat, country)
-
-
-ineq_fun <- function(x,y, column) {
-  curveConcent(x[,column], x[,"asset_index_nowashnomat"], col="red")
-  curveConcent(y[,column], y[,"asset_index_nowashnomat"], col="red",lty=2, add=TRUE)
-  title(main=paste(column))
-  legend("topleft", legend = c("Fishing community", "Non-Fishing community"),col=c("red", "red"), lty=c(1,2))
-}
-
-list <- c("water_imp", "water_piped", "san_imp", "housing_imp")
-
-#Improved water source
-ineq_fun(fish_ses, non_fish_ses, "water_imp")
-#Piped water source
-ineq_fun(fish_ses, non_fish_ses, "water_piped")
-#Improved sanitation
-ineq_fun(fish_ses, non_fish_ses, "san_imp")
-#Improved housing
-ineq_fun(fish_ses, non_fish_ses, "housing_imp")
-
-
-##There seems to be a large degree of heterogeneity between the countries
-decompSGini(vars_ses[,"water_imp"], z=vars_ses[,"country"], param=4)
-
-decompSGini(x=vars_ses[,"water_imp"], z=vars_ses[,"country"], param=4)
-
-summary(vars_ses[,"water_imp"])
-
-
-
-curveConcent(vars_ses[,"water_imp"], y=vars_ses[,"asset_index_nowashnomat"], col="red")
-
-
-##Plot individual curves for each country 
-fish_ses_country <- fish_ses %>% group_by(country) %>% nest()
-
-non_fish_ses_country <- non_fish_ses %>% group_by(country) %>% nest()
-
-ineq_fun(fish_ses_country$data[1], non_fish_ses_country$data[1], "water_imp")
-
-
-download.file("https://wfs.gc.cuny.edu/njohnson/www/BrankoData/LM_WPID_web.dta", 
-              mode = "wb", destfile = "LM_WPID_web.dta")
-
-wpid <- read.dta("LM_WPID_web.dta")
-
-###Trying another method
-#http://freerangestats.info/blog/2017/08/19/quantiles-gini
-
-
-hr_fish_gps %>%
-  arrange(asset_index_nowashnomat) %>%
-  mutate(cumulative=cumsum(water_imp)/sum(water_imp),
-         ses_decile=ntile(asset_index_nowashnomat,100))%>%
-  group_by(ses_decile) %>%
-  select(ses_decile, cumulative, country, fishing_community) %>%
-  slice(n()) %>%
-  ggplot(aes(x=ses_decile, y=cumulative)) +
-  geom_line() 
-
-
-
-
-
-
+#Definte function
 conc <- function(df, var) {
   var <- enquo(var)
-  name <- enquo(name)
-  name <- quo_name(name 
-                   )
+  
   df %>%
     arrange(asset_index_nowashnomat) %>%
-    mutate(cumulative=cumsum(var)/sum(var),
-           ses_decile=ntile(asset_index_nowashnomat,100))%>%
-    group_by(ses_decile) %>%
-    select(ses_decile, cumulative, country, fishing_community) %>%
+    group_by(fish_factor) %>%
+    mutate(cumulative=cumsum(!!var)/sum(!!var),
+           ses_group=ntile(asset_index_nowashnomat,100),
+           ses_group=(ses_group/100)) %>%
+    group_by(fish_factor, ses_group) %>%
+    select(fish_factor, water_imp, ses_group, cumulative) %>%
     slice(n()) %>%
-    ggplot(aes(x=ses_decile, y=cumulative)) +
-    geom_line() 
+    ggplot(aes(x=ses_group, y=cumulative, group=fish_factor, col=factor(fish_factor))) +
+    geom_line() +
+    geom_abline(intercept = 0, slope = 1, colour = "black") +
+    theme(legend.title=element_blank()) +
+    #labs(title = var) +
+    ylab("Cumulative share of variable") + 
+    xlab("Cumulative % of population, ranked by SES")
 }
 
-test <- samp %>% conc(water_imp)
+#Make factor variable for fishing communities
+hr_fish_gps$fish_factor <- factor(hr_fish_gps$fishing_community, labels=c("Non-fishing community", "Fishing community"))
 
+#Run function over each variable
+water_imp <- conc(hr_fish_gps, water_imp)+ labs(title="Improved water source")
+water_piped <- conc(hr_fish_gps,water_piped) + labs(title="Piped water source")
+less5 <- conc(hr_fish_gps,less_than_5) + labs(title="<5 minutes to improved water source")
+hwashobs <- conc(hr_fish_gps,hwashobs) + labs(title="Place for handwashing observed")
+san_imp <- conc(hr_fish_gps,san_imp) + labs(title="Improved sanitation")
+housing_imp <- conc(hr_fish_gps,housing_imp) + labs(title="Improved housing")
+
+#Arrange each plot
+hr_conc_plots <- ggarrange(water_imp, water_piped, less5, hwashobs, san_imp, housing_imp, ncol=2, nrow=3, common.legend = TRUE, legend="top")
+hr_conc_plots
+ggsave("outputs//hr_conc_plots.pdf", plot = last_plot(), width=20, height=20, units="cm", device="pdf")
+
+
+###Childhood variables
+kr_fish_gps$fish_factor <- factor(kr_fish_gps$fishing_community, labels=c("Non-fishing community", "Fishing community"))
+
+not_immun <- conc(kr_fish_gps, not_immun) + labs(title="Not fully vaccinate")
+diarrhea <- conc(kr_fish_gps, diarrhea) + labs(title="Diarrhea in last 2 weeks")
+ari <- conc(kr_fish_gps, ari) + labs(title="ARI in last 2 weeks")
+fever <- conc(kr_fish_gps, fever) + labs(title="Fever in last 2 weeks")
+breastfed <- conc(kr_fish_gps, bfeeding) + labs(title="Ever breastfed")
+
+kr_conc_plots <- ggarrange(not_immun, diarrhea, ari, fever, breastfed, ncol=2, nrow=3, common.legend = TRUE, legend="top")
+
+rm(water_imp,water_piped, less5, hwashobs, san_imp, housing_imp, not_immun, diarrhea, ari, fever, breastfed)
 
 
 

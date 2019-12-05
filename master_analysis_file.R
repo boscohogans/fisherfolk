@@ -6,6 +6,10 @@ library(naniar)
 library(MatchIt)
 library(scales)
 library(broom.mixed)
+library(PerformanceAnalytics)
+library(ggpubr)
+
+
 
 
 #Building dataset
@@ -18,7 +22,10 @@ source("indicator_variables.R")
 source("propensity_score_match.R")
 
 #Inequality curves
-#source("inequality_curves.R")
+source("inequality_curves.R")
 
 #Regressions
 source("regressions.R")
+
+#Regression tables and graphs
+source("regression_graphs.R")
