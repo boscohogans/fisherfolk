@@ -8,15 +8,16 @@ library(scales)
 library(broom.mixed)
 library(PerformanceAnalytics)
 library(ggpubr)
-
-
-
+library(statar)
 
 #Building dataset
 source("building_dataset.R")
 
 #Make indicator variables
 source("indicator_variables.R")
+
+#Tabels of indicator variables
+source("indicator_tables.R")
 
 #Generate propenstiy score
 source("propensity_score_match.R")
@@ -28,4 +29,4 @@ source("inequality_curves.R")
 source("regressions.R")
 
 #Regression tables and graphs
-source("regression_graphs.R")
+source("tables_graphs.R")

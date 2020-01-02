@@ -1,5 +1,3 @@
-strict_tol <- lmerControl(optCtrl=list(xtol_abs=1e-8, ftol_abs=1e-8))
-
 ##Household regressions
 
 #All hr vars
@@ -43,7 +41,6 @@ hr_models <-
             ,family = 'binomial'
             ,control=glmerControl(optimizer="bobyqa",
                                   optCtrl=list(maxfun=2e5)))
-            #,control=glmerControl(optimizer="bobyqa"))
   })
 
 names(hr_models) <- paste(hr_outcomes)
@@ -56,26 +53,23 @@ names(hr_models_tabl) <- paste(hr_outcomes)
 hr_results <- rbindlist(hr_models_tabl, idcol="id")
 hr_results <- hr_results[, lapply(.SD, exp), by=c("id", "term", "p.value"), .SDcols = for_exp]
 
+
 #Repeat for each country
 hr_models_country <-
   lapply(setNames(hr_outcomes, hr_outcomes), function(var) {
     fixed <- paste0(unlist(all_hr_vars), collapse= " + ")
     formula <-
       as.formula(paste(var, "~", fixed , "+", hr_intercept))
-    print(formula)
-    lapply(setNames(countries, countries), function(k) {
-      y <- subset(hr_select_scale, country == k)
-    mod <-
-      glmer(formula,
-            data = y
-            ,nAGQ = 0
-            ,family = 'binomial'
-            ,control=glmerControl(optimizer="bobyqa",
-                                  optCtrl=list(maxfun=2e5)))
-            #,control=glmerControl(optimizer="bobyqa"))
-  })
-  })
+    hr_select_scale %>%
+      split(.$country) %>%
+      map(~glmer(formula,
+                        data = .
+                        ,nAGQ = 0
+                        ,family = 'binomial'
+                        ,control=glmerControl(optimizer="bobyqa",
+                                              optCtrl=list(maxfun=2e5))))})
 
+ 
 names(hr_models_country) <- paste(hr_outcomes)
 
 all_hr_country <- modify_depth(hr_models_country,2,tidy, conf.int=TRUE)
@@ -149,8 +143,6 @@ kr_models <-
             ,family = 'binomial'
             ,control=glmerControl(optimizer="bobyqa",
                                   optCtrl=list(maxfun=2e5)))
-            #,control = glmerControl(optimizer ="Nelder_Mead"))
-            #,control=glmerControl(optimizer="bobyqa"))
   })
 
 names(kr_models) <- paste(kr_outcomes)
@@ -170,19 +162,14 @@ kr_models_country <-
     fixed <- paste0(unlist(all_kr_vars), collapse= " + ")
     formula <-
       as.formula(paste(var, "~", fixed , "+", kr_intercept))
-    print(formula)
-    lapply(setNames(countries, countries), function(k) {
-      y <- subset(kr_select_scale, country == k)
-      mod <-
-        glmer(formula,
-              data = y
-              ,nAGQ = 0
-              ,family = 'binomial'
-              ,control=glmerControl(optimizer="bobyqa",
-                                    optCtrl=list(maxfun=2e5)))
-              #,control = glmerControl(optimizer ="Nelder_Mead"))
-      #,control=glmerControl(optimizer="bobyqa"))
-    })
+    kr_select_scale %>%
+      split(.$country) %>%
+      map(~glmer(formula,
+                 data = .
+                 ,nAGQ = 0
+                 ,family = 'binomial'
+                 ,control=glmerControl(optimizer="bobyqa",
+                                       optCtrl=list(maxfun=2e5))))
   })
 
 names(kr_models_country) <- paste(kr_outcomes)
@@ -204,9 +191,6 @@ kr_country_data_results <- kr_country_data[, lapply(.SD, exp), by=c("outcome", "
 
 rm(all_kr_country, kr_list, diarrhea_country, not_immun_country, ari_country, fever_country, propensity_score, hr_scale, kr_scale, hr_intercept)
 
-
-
-
 #We also want to look at how household indicators impact childhood illness
 start_time <- Sys.time()
 kr_with_hr <- c(all_kr_vars, hr_outcomes)
@@ -224,9 +208,6 @@ kr_with_hr_models <- lapply(1:4, function(i) {
       family = 'binomial'
       ,control=glmerControl(optimizer="bobyqa",
                             optCtrl=list(maxfun=2e5)))
-      #control = glmerControl(optimizer = "Nelder_Mead")
-    
-  #,control=glmerControl(optimizer="bobyqa"))
 })
 end_time <- Sys.time()
 
@@ -252,19 +233,14 @@ kr_hr_models_country <-
     fixed <- paste0(unlist(kr_with_hr), collapse= " + ")
     formula <-
       as.formula(paste(var, "~", fixed , "+", kr_intercept))
-    print(formula)
-    lapply(setNames(countries, countries), function(k) {
-      y <- subset(kr_select_scale, country == k)
-      mod <-
-        glmer(formula,
-              data = y
-              ,nAGQ = 0
-              ,family = 'binomial'
-              ,control=glmerControl(optimizer="bobyqa",
-                                    optCtrl=list(maxfun=2e5)))
-              #,control = glmerControl(optimizer ="Nelder_Mead"))
-      #,control=glmerControl(optimizer="bobyqa"))
-    })
+    kr_select_scale %>%
+      split(.$country) %>%
+      map(~glmer(formula,
+                 data = .
+                 ,nAGQ = 0
+                 ,family = 'binomial'
+                 ,control=glmerControl(optimizer="bobyqa",
+                                       optCtrl=list(maxfun=2e5))))
   })
 
 names(kr_hr_models_country) <- paste(kr_outcomes)
