@@ -1,15 +1,15 @@
 ##Household variables
 ###Make HR variables 
-#Piped water
-hr_fish_gps[, water_piped := ifelse(grepl("piped", hv201), 1,0)]
-
 #Improved water source
 hr_fish_gps$hv201 <- tolower(hr_fish_gps$hv201)
+
+#Piped water
+hr_fish_gps[, water_piped := ifelse(grepl("piped", hv201), 1,0)]
 
 hr_fish_gps[, water_imp := ifelse(grepl("piped", hv201), 1,
                                   ifelse(grepl("\\bprotected\\b", hv201), 1,
                                          ifelse(
-                                           grepl("\\brain\\b", hv201), 1,
+                                           grepl("rain", hv201), 1,
                                            ifelse(
                                              grepl("\\bborehole\\b", hv201), 1,
                                            ifelse(
@@ -19,13 +19,17 @@ hr_fish_gps[, water_imp := ifelse(grepl("piped", hv201), 1,
                                            )))))]
 
 #Time to water source
-hr_fish_gps[, water_on_premises := ifelse((hv204 == 996 &
+hr_fish_gps$timetowater <- as.numeric(hr_fish_gps$hv204)
+hr_fish_gps$hv204 <- tolower(hr_fish_gps$hv204)
+
+hr_fish_gps[, water_on_premises := ifelse(((grepl("premises", hv204) | (timetowater==0)) &
                                              water_imp == 1), 1, 0)]
-hr_fish_gps[, less_than_5 := ifelse((hv204 <= 5 &
+hr_fish_gps[, less_than_5 := ifelse(((timetowater <= 5 | water_on_premises==1) &
                                        water_imp == 1), 1, 0)]
-hr_fish_gps[, less_than_30 := ifelse((hv204 <= 30 &
+hr_fish_gps[, less_than_30 := ifelse(((timetowater <= 30 | water_on_premises==1) &
                                         water_imp == 1), 1, 0)]
 
+hr_fish_gps <- tidyr::replace_na(hr_fish_gps, list(water_on_premises=0, less_than_5=0, less_than_30=0))
 
 #Improved sanitation
 hr_fish_gps$hv205 <- tolower(hr_fish_gps$hv205)
@@ -44,7 +48,9 @@ hr_fish_gps[, san_imp :=   ifelse(grepl("uncovered", hv205), 0,
                                          ifelse(grepl("know where", hv205), 0,san_imp))))))]
 
 #Not improved if shared
-hr_fish_gps[, san_imp := ifelse(hv225==1,0,san_imp)]
+hr_fish_gps$hv225 <- tolower(hr_fish_gps$hv225)
+hr_fish_gps[,toilet_shared := ifelse(grepl("yes",hv225),1,0)]
+hr_fish_gps[, san_imp := ifelse(toilet_shared!=1,san_imp,0)]
 
 #Hygiene variables 
 #https://dhsprogram.com/Data/Guide-to-DHS-Statistics/index.htm#t=Handwashing.htm%23Percentage_of_households3bc-1&rhtocid=_5_7_0
@@ -64,8 +70,9 @@ hr_fish_gps$ppl_per_bedroom <- ifelse(!is.finite(hr_fish_gps$ppl_per_bedroom),0,
 
 hr_fish_gps[, three_per_bedroom := ifelse((ppl_per_bedroom > 3), 1, 0)]
 
-finished_materials <- c("concrete", "cement", "asbestos", "tiles", "shingles", "iron", 
-                        "ceramic","metal", "sheets", "bricks", "parquet", "vinyl", "zinc","stone blocks", "carpet", "polished wood", "\\bcovered adobe\\b", "3")
+finished_materials <- c("concrete", "cement", "asbestos", "tiles", "iron", 
+                        "ceramic","metal", "sheets", "bricks", "parquet", "vinyl", "zinc", "tin",
+                        "blocks", "carpet", "polished", "\\bcovered adobe\\b", "3")
 #Tanzania has numbers instead of labels for round 7. Finished materials start with "3"
 
 fa <- function(x) {
@@ -79,7 +86,8 @@ hr_fish_gps <- hr_fish_gps %>%
          floor_finished=fa(hv213),
         housing_unfinished=ifelse((roof_finished + wall_finished + floor_finished) <2,1,0),
          housing_unimp = ifelse((water_imp!=1 | san_imp!=1 | three_per_bedroom==1 | housing_unfinished==1),1,0),
-         housing_imp = 1-housing_unimp)
+        housing_imp = 1-housing_unimp)
+         #housing_imp = 1-housing_unimp)
 
 
 #Need to keep a selection of variables for merging into childhood data
@@ -114,7 +122,8 @@ kr_fish_gps <- kr_fish_gps %>%
          #*generating binary measles variable* // includes self reported vaccination by caregiver as suggested by dhs https://dhsprogram.com/pubs/pdf/FR308/FR308.pdf
          meas=f1(h9),
          #*generating immunisation variable per description in https://www.sciencedirect.com/science/article/pii/S1473309915700423?via%3Dihub*
-         not_immun=ifelse((dpt!=1 & polio!=1 & meas!=1),1,0),
+         immun=ifelse((dpt==1 & polio==1 & meas==1),1,0),
+         not_immun=1-immun,
          h31b=tolower(h31b),
          h31c=tolower(h31c),
          ari=ifelse(h31b=="yes" & h31c %in% c("chest only", "both"),1,0),

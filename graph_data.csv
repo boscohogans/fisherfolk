@@ -1,0 +1,49 @@
+indicator,country,mean,lci,uci,group
+ari,All countries,1.54,1.21,1.96,childhood
+ari,Kenya,0.68,0.33 , 1.40,childhood
+ari,Malawi,1.71,1.24 , 2.37,childhood
+ari,Tanzania,0.73,0.30 , 1.79,childhood
+ari,Uganda,1.86,1.24 , 2.79,childhood
+ari,Zambia,0.76,0.23 , 2.55,childhood
+diarrhea,All countries,1.07,0.95,1.19,childhood
+diarrhea,Kenya,1.41,0.95 , 2.08,childhood
+diarrhea,Malawi,0.77,0.67 , 0.89,childhood
+diarrhea,Tanzania,1.13,0.79 , 1.62,childhood
+diarrhea,Uganda,1.47,1.20 , 1.79,childhood
+diarrhea,Zambia,1.2,0.81 , 1.78,childhood
+fever,All countries,1.52,1.31,1.77,childhood
+fever,Kenya,2.1,1.39 , 3.19,childhood
+fever,Malawi,0.97,0.79 , 1.17,childhood
+fever,Tanzania,1.35,0.97 , 1.88,childhood
+fever,Uganda,2.25,1.62 , 3.12,childhood
+fever,Zambia,2,1.21 , 3.29,childhood
+immun,All countries,0.8,0.71,0.9,childhood
+immun,Kenya,0.7,0.49 , 1.00,childhood
+immun,Malawi,0.91,0.80 , 1.03,childhood
+immun,Tanzania,0.92,0.64 , 1.31,childhood
+immun,Uganda,0.7,0.58 , 0.83,childhood
+immun,Zambia,0.5,0.31 , 0.79,childhood
+water_imp,All countries,0.57,0.37,0.88,household
+water_imp,Kenya,0.27,0.11 , 0.67,household
+water_imp,Malawi,1.49,0.89 , 2.51,household
+water_imp,Tanzania,0.04 ,0.01 , 0.18,household
+water_imp,Uganda,0.43,0.18 , 1.05,household
+water_imp,Zambia,0.57,0.14 , 2.21,household
+water_less5,All countries,1.75,1.43,2.14,household
+water_less5,Kenya,1.56,0.80 , 3.06,household
+water_less5,Malawi,1.6,1.23 , 2.08,household
+water_less5,Tanzania,1.8,0.94 , 3.48,household
+water_less5,Uganda,2.9,2.02 , 4.16,household
+water_less5,Zambia,0.34,0.17 , 0.68,household
+san_imp,All countries,0.83,0.64,1.07,household
+san_imp,Kenya,0.87,0.51 , 1.46,household
+san_imp,Malawi,1.11,0.71 , 1.75,household
+san_imp,Tanzania,0.33,0.15 , 0.72,household
+san_imp,Uganda,0.4,0.28 , 0.57,household
+san_imp,Zambia,6.18,2.78 , 13.75,household
+housing_imp,All countries,0.78,0.61,0.99,household
+housing_imp,Kenya,0.6,0.35 , 1.02,household
+housing_imp,Malawi,1.33,0.96 , 1.85,household
+housing_imp,Tanzania,0.13,0.04 , 0.42,household
+housing_imp,Uganda,0.36,0.22 , 0.59,household
+housing_imp,Zambia,0.94,0.24 , 3.71,household

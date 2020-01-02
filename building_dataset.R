@@ -75,7 +75,9 @@ hr_data <- all_hr_combined %>%
          dhsround=substr(hv000,3,1),
          country=substr(hv000,1,2)) %>%
 left_join(wealth_index,by=c("hv000"="hv000", "hv001"="hv001", "hv002"="hv002")) %>%
-left_join(fish_gps, by=c("country"="DHSCC", "dhsyear"="DHSYEAR", "dhsclust"="DHSCLUST"))
+left_join(fish_gps, by=c("country"="DHSCC", "dhsyear"="DHSYEAR", "dhsclust"="DHSCLUST")) %>%
+  mutate(fishing_community = ifelse(is.na(fishing_community), 0, fishing_community))
+
 
 hr_fish_gps <- setDT(hr_data, key="hhid")
 
@@ -116,7 +118,9 @@ kr_data <- all_kr_combined %>%
   left_join(wealth_index,by=c("v000"="hv000", "v001"="hv001", "v002"="hv002")) %>%
   left_join(fish_gps, by=c("country"="DHSCC", "dhsyear"="DHSYEAR", "dhsclust"="DHSCLUST")) %>%
    #only keep record if child is alive and resident
-        filter((b5=="Yes"|b5=="yes") & (v135=="usual resident"|v135=="Usual resident"))
+        filter((b5=="Yes"|b5=="yes") & (v135=="usual resident"|v135=="Usual resident")) %>%
+  mutate(fishing_community = ifelse(is.na(fishing_community), 0, fishing_community))
+
 
 kr_fish_gps <- setDT(kr_data, key="caseid")
 

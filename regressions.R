@@ -1,9 +1,11 @@
+strict_tol <- lmerControl(optCtrl=list(xtol_abs=1e-8, ftol_abs=1e-8))
 
 ##Household regressions
 
 #All hr vars
 all_hr_vars <- c("fish_factor", "num_hhmembers" ,"asset_index_nowashnomat")
 hr_scale <- all_hr_vars[-1]
+
 
 hr_select <- hr_fish_gps %>% 
   #Make clusters variable
@@ -37,8 +39,10 @@ hr_models <-
     mod <-
       glmer(formula,
             data = hr_select_scale
+            #,nAGQ = 0
             ,family = 'binomial'
-            ,control = glmerControl(optimizer ="Nelder_Mead"))
+            ,control=glmerControl(optimizer="bobyqa",
+                                  optCtrl=list(maxfun=2e5)))
             #,control=glmerControl(optimizer="bobyqa"))
   })
 
@@ -64,8 +68,10 @@ hr_models_country <-
     mod <-
       glmer(formula,
             data = y
+            ,nAGQ = 0
             ,family = 'binomial'
-    ,control = glmerControl(optimizer ="Nelder_Mead"))
+            ,control=glmerControl(optimizer="bobyqa",
+                                  optCtrl=list(maxfun=2e5)))
             #,control=glmerControl(optimizer="bobyqa"))
   })
   })
@@ -85,7 +91,7 @@ hr_list <- list(water_imp_country, water_piped_country, hwashobs_country, less5_
 names(hr_list) <- paste(hr_outcomes)
 hr_country_data <- rbindlist(hr_list, idcol="outcome")
 
-hr_country_data <-hr_country_data[complete.cases(hr_country_data[, for_exp, with=FALSE])]
+hr_country_data_results <-hr_country_data[complete.cases(hr_country_data[, for_exp, with=FALSE])]
 hr_country_data_results <- hr_country_data[, lapply(.SD, exp), by=c("outcome", "id", "term", "p.value"), .SDcols = for_exp]
 
 rm(all_hr_country, hr_list, water_imp_country, water_piped_country, hwashobs_country, less5_country,
@@ -139,8 +145,11 @@ kr_models <-
     mod <-
       glmer(formula,
             data = kr_select_scale
+            ,nAGQ = 0
             ,family = 'binomial'
-            ,control = glmerControl(optimizer ="Nelder_Mead"))
+            ,control=glmerControl(optimizer="bobyqa",
+                                  optCtrl=list(maxfun=2e5)))
+            #,control = glmerControl(optimizer ="Nelder_Mead"))
             #,control=glmerControl(optimizer="bobyqa"))
   })
 
@@ -160,15 +169,18 @@ kr_models_country <-
   lapply(setNames(kr_outcomes, kr_outcomes), function(var) {
     fixed <- paste0(unlist(all_kr_vars), collapse= " + ")
     formula <-
-      as.formula(paste(var, "~", fixed , "+", hr_intercept))
+      as.formula(paste(var, "~", fixed , "+", kr_intercept))
     print(formula)
     lapply(setNames(countries, countries), function(k) {
       y <- subset(kr_select_scale, country == k)
       mod <-
         glmer(formula,
               data = y
+              ,nAGQ = 0
               ,family = 'binomial'
-              ,control = glmerControl(optimizer ="Nelder_Mead"))
+              ,control=glmerControl(optimizer="bobyqa",
+                                    optCtrl=list(maxfun=2e5)))
+              #,control = glmerControl(optimizer ="Nelder_Mead"))
       #,control=glmerControl(optimizer="bobyqa"))
     })
   })
@@ -194,20 +206,82 @@ rm(all_kr_country, kr_list, diarrhea_country, not_immun_country, ari_country, fe
 
 
 
-#We also want to look at how household indicators impact childhood illness
 
+#We also want to look at how household indicators impact childhood illness
+start_time <- Sys.time()
 kr_with_hr <- c(all_kr_vars, hr_outcomes)
 
 kr_with_hr_models <- lapply(1:4, function(i) {
-  kr_fixed <- paste0(unlist(kr_with_hr), collapse= " + ")
+  kr_fixed <- paste0(unlist(kr_with_hr), collapse = " + ")
   formula <-
     as.formula(paste(kr_outcomes[i], "~", kr_fixed, "+", kr_intercept))
   print(formula)
-  mod <- glmer(formula, kr_select_scale, family = 'binomial',
-               control = glmerControl(optimizer ="Nelder_Mead"))
-               #,control=glmerControl(optimizer="bobyqa"))
+  mod <-
+    glmer(
+      formula,
+      kr_select_scale,
+      nAGQ = 0,
+      family = 'binomial'
+      ,control=glmerControl(optimizer="bobyqa",
+                            optCtrl=list(maxfun=2e5)))
+      #control = glmerControl(optimizer = "Nelder_Mead")
+    
+  #,control=glmerControl(optimizer="bobyqa"))
 })
+end_time <- Sys.time()
+
+kr_with_hr_models_tabl <- map(kr_with_hr_models, tidy, conf.int=TRUE)
+names(kr_with_hr_models_tabl) <- paste(kr_outcomes)
+#bind rows together
+kr_with_hr_results <- rbindlist(kr_with_hr_models_tabl, idcol="id")
+kr_with_hr_results <- kr_with_hr_results[, lapply(.SD, exp), by=c("id", "term", "p.value"), .SDcols = for_exp]
 
 
+#Extract coefficients to table
+kr_hr_models_tabl <- map(kr_with_hr_models, tidy, conf.int=TRUE)
+names(kr_hr_models_tabl) <- paste(kr_outcomes)
+#bind rows together
+kr_hr_results <- rbindlist(kr_hr_models_tabl, idcol="id")
+kr_hr_results <- complete.cases(kr_hr_results[, lapply(.SD, exp), by=c("id", "term", "p.value"), .SDcols = for_exp])
+
+
+
+#Repeat for each country
+kr_hr_models_country <-
+  lapply(setNames(kr_outcomes, kr_outcomes), function(var) {
+    fixed <- paste0(unlist(kr_with_hr), collapse= " + ")
+    formula <-
+      as.formula(paste(var, "~", fixed , "+", kr_intercept))
+    print(formula)
+    lapply(setNames(countries, countries), function(k) {
+      y <- subset(kr_select_scale, country == k)
+      mod <-
+        glmer(formula,
+              data = y
+              ,nAGQ = 0
+              ,family = 'binomial'
+              ,control=glmerControl(optimizer="bobyqa",
+                                    optCtrl=list(maxfun=2e5)))
+              #,control = glmerControl(optimizer ="Nelder_Mead"))
+      #,control=glmerControl(optimizer="bobyqa"))
+    })
+  })
+
+names(kr_hr_models_country) <- paste(kr_outcomes)
+
+
+all_kr_hr_country <- modify_depth(kr_hr_models_country,2,tidy, conf.int=TRUE)
+diarrhea_hr_country <- rbindlist(all_kr_hr_country$diarrhea, idcol="id")
+not_immun_hr_country <- rbindlist(all_kr_hr_country$not_immun, idcol="id")
+ari_hr_country <- rbindlist(all_kr_hr_country$ari, idcol="id")
+fever_hr_country <- rbindlist(all_kr_hr_country$fever , idcol="id")
+#bfeeding_country <- rbindlist(all_kr_country$bfeeding, idcol="id")
+
+kr_hr_list <- list(diarrhea_hr_country, not_immun_hr_country, ari_hr_country, fever_hr_country)
+names(kr_hr_list) <- paste(kr_outcomes)
+kr_hr_country_data <- rbindlist(kr_hr_list, idcol="outcome")
+
+kr_hr_country_data <-kr_hr_country_data[complete.cases(kr_hr_country_data[, for_exp, with=FALSE])]
+kr_country_data_results <- kr_hr_country_data[, lapply(.SD, exp), by=c("outcome", "id", "term", "p.value"), .SDcols = for_exp]
 
 
