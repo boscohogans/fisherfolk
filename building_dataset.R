@@ -1,42 +1,5 @@
-
 #Building DHS datasets
 countries <- c("KE", "MW", "TZ", "UG", "ZM")
-#Read in all GPS Points
-all_gps <- fread("data//gps_dhs_rural.csv")[DHSCC %in% countries]
-#drop if longnum==0
-#Read in all fishing communities 
-rural_5km <- fread("data//rural_intersection_5km_20190815.csv")[DHSCC %in% countries]
-#Generate fishing community variable
-rural_5km$fishing_community <- 1
-
-fish_gps <- all_gps %>%
-  #Join fishing communities to all GPS points
-  left_join(select(rural_5km, DHSCC, DHSYEAR, DHSCLUST, fishing_community, LAKE_NAME), 
-  #left_join(rural_5km, 
-           c("DHSCC", "DHSYEAR", "DHSCLUST")) %>%
-  #Select columns for further analysis
-  #select(DHSID.x, DHSCC, DHSYEAR, DHSCLUST, LAKE_NAME, LATNUM.x, LONGNUM.x, fishing_community) %>%
-  #Generate hv000 based on survey year and country
-  # mutate(hv000 = ifelse((DHSYEAR==2003 & DHSCC=="KE"),"KE4",
-  #        ifelse((DHSYEAR==2008 & DHSCC=="KE"),"KE5",
-  #        ifelse((DHSYEAR==2014 & DHSCC=="KE"),"KE6",
-  #        ifelse((DHSYEAR==2010 & DHSCC=="MW"),"MW5",
-  #        ifelse((DHSYEAR==2015 & DHSCC=="MW"),"MW7",
-  #        ifelse((DHSYEAR==2010 & DHSCC=="TZ"),"TZ5",
-  #        ifelse((DHSYEAR==2015 & DHSCC=="TZ"),"TZ7",
-  #        ifelse((DHSYEAR==2006 & DHSCC=="UG"),"UG5",
-  #        ifelse((DHSYEAR==2011 & DHSCC=="UG"),"UG6",
-  #        ifelse((DHSYEAR==2016 & DHSCC=="UG"),"UG7",
-  #        ifelse((DHSYEAR==2007 & DHSCC=="ZM"),"ZM5",
-  #        ifelse((DHSYEAR==2013 & DHSCC=="ZM"),"ZM6",
-  #        NA ))))))))))))) %>%
-  #filter(DHSYEAR !="")
-  filter(fishing_community==1) %>%
-  mutate(fishing_community = ifelse(is.na(fishing_community), 0, fishing_community))
-
-
-rm(all_gps, rural_5km)
-#keep dhs* lat* long* lake_name
 
 ###Household data
 #Import HR DHS data
@@ -75,9 +38,8 @@ hr_data <- all_hr_combined %>%
          dhsround=substr(hv000,3,1),
          country=substr(hv000,1,2)) %>%
 left_join(wealth_index,by=c("hv000"="hv000", "hv001"="hv001", "hv002"="hv002")) %>%
-left_join(fish_gps, by=c("country"="DHSCC", "dhsyear"="DHSYEAR", "dhsclust"="DHSCLUST")) %>%
+left_join(fish_village_final, by=c("country"="DHSCC", "dhsyear"="DHSYEAR", "dhsclust"="DHSCLUST")) %>%
   mutate(fishing_community = ifelse(is.na(fishing_community), 0, fishing_community))
-
 
 hr_fish_gps <- setDT(hr_data, key="hhid")
 
@@ -116,7 +78,7 @@ kr_data <- all_kr_combined %>%
          dhsround=substr(v000,3,1),
          country=substr(v000,1,2))  %>%
   left_join(wealth_index,by=c("v000"="hv000", "v001"="hv001", "v002"="hv002")) %>%
-  left_join(fish_gps, by=c("country"="DHSCC", "dhsyear"="DHSYEAR", "dhsclust"="DHSCLUST")) %>%
+  left_join(fish_village_final, by=c("country"="DHSCC", "dhsyear"="DHSYEAR", "dhsclust"="DHSCLUST")) %>%
    #only keep record if child is alive and resident
         filter((b5=="Yes"|b5=="yes") & (v135=="usual resident"|v135=="Usual resident")) %>%
   mutate(fishing_community = ifelse(is.na(fishing_community), 0, fishing_community))
@@ -124,7 +86,7 @@ kr_data <- all_kr_combined %>%
 
 kr_fish_gps <- setDT(kr_data, key="caseid")
 
-rm(all_kr, all_kr_combined, kr_data, keep_kr, kr, kr_files, kr_vars_to_keep, fish_gps, wealth_index)
+rm(all_kr, all_kr_combined, kr_data, keep_kr, kr, kr_files, kr_vars_to_keep, fish_gps, wealth_index. fish_village_final)
 
 
 
