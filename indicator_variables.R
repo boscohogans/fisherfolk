@@ -87,8 +87,6 @@ hr_fish_gps <- hr_fish_gps %>%
         housing_unfinished=ifelse((roof_finished + wall_finished + floor_finished) <2,1,0),
          housing_unimp = ifelse((water_imp!=1 | san_imp!=1 | three_per_bedroom==1 | housing_unfinished==1),1,0),
         housing_imp = 1-housing_unimp)
-         #housing_imp = 1-housing_unimp)
-
 
 #Need to keep a selection of variables for merging into childhood data
 
@@ -103,6 +101,12 @@ hr_outcomes <-
 household_indicators <- select(hr_fish_gps, hv000, hv001, hv002, hr_outcomes)
 
 ##Childhood variables
+
+kr_outcomes <- c("diarrhea",
+                 "not_immun",
+                 "ari",
+                 "fever")
+
 f1 <- function(x) {
   y<- tolower(x)
   ifelse(grepl("yes",y),1,
@@ -111,7 +115,7 @@ f1 <- function(x) {
 #Change blanks to NA
 kr_fish_gps[kr_fish_gps==""] <- NA
 
-kr_fish_gps <- kr_fish_gps %>%
+kr_fish_gps_upd <- kr_fish_gps %>%
   mutate(diarrhea=f1(h11),
          #*https://dhsprogram.com/data/Guide-to-DHS-Statistics/index.htm#t=Vaccination.htm%23Percentage_of_children9bc-1&rhtocid=_13_1_0
          vaccination=f1(h10),
@@ -128,15 +132,8 @@ kr_fish_gps <- kr_fish_gps %>%
          h31c=tolower(h31c),
          ari=ifelse(h31b=="yes" & h31c %in% c("chest only", "both"),1,0),
          ari = ifelse(is.na(ari), 0, ari),
-         fever=f1(h22),
-         m4=tolower(m4),
-         bfeeding=ifelse(m4 %in% c("never breastfed", "99", "dk", "don't know", "inconsistent"),0,
-                         ifelse(is.na(m4),0,1))) %>%
+         fever=f1(h22)) %>%
   left_join(household_indicators, by=c("v000"="hv000", "v001"="hv001", "v002"="hv002"))
 
-kr_outcomes <- c("diarrhea",
-                 "not_immun",
-                 "ari",
-                 "fever")
-
-rm(household_indicators, finished_materials, f1, fa)
+#Remove data frames which no longer need to be used
+rm(household_indicators, finished_materials, f1, fa, kr_fish_gps)

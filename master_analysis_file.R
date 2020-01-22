@@ -1,3 +1,9 @@
+library(utils)
+library(rgdal)
+library(sf)
+library(leaflet)
+library(dplyr)
+library(rgeos)
 library(tidyverse)
 library(lme4)
 library(sjPlot)
@@ -10,6 +16,10 @@ library(PerformanceAnalytics)
 library(ggpubr)
 library(statar)
 
+#Finding fishing villages
+source("buffer_creation.R")
+rm(list=ls()[! ls() %in% c("fish_village_final")])
+
 #Building dataset
 source("building_dataset.R")
 
@@ -17,7 +27,7 @@ source("building_dataset.R")
 source("indicator_variables.R")
 
 #Tabels of indicator variables
-source("indicator_tables.R")
+#source("indicator_tables.R")
 
 #Generate propenstiy score
 source("propensity_score_match.R")

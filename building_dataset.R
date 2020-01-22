@@ -86,7 +86,7 @@ kr_data <- all_kr_combined %>%
 
 kr_fish_gps <- setDT(kr_data, key="caseid")
 
-rm(all_kr, all_kr_combined, kr_data, keep_kr, kr, kr_files, kr_vars_to_keep, fish_gps, wealth_index. fish_village_final)
+rm(all_kr, all_kr_combined, kr_data, keep_kr, kr, kr_files, kr_vars_to_keep, fish_gps, wealth_index, fish_village_final)
 
 
 
