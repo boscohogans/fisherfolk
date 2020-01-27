@@ -6,7 +6,7 @@
 #hr <- read.dta13("data//gps_hr_20191120_dk.dta")
 
 ##library(tidyverse)
-hr_prop_data <- hr_fish_gps %>%
+hr_prop_data <- hr_fish_gps_upd %>%
   #Make new cluster variable
   mutate(clusters=paste(hv000, hv021, sep="_"),
          #Change fishing indicator to factor 

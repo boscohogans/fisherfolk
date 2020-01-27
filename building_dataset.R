@@ -27,24 +27,20 @@ wealth_index <- fread("data//wealth_index_20191201.csv")
 hr_data <- all_hr_combined %>%
   mutate(dhsclust=hv001,
          dhsyear=hv007,
-         dhsyear= ifelse(hv000=="KE5", 2008,
-                  ifelse(hv000=="MW4", 2005,
-                  ifelse(hv000=="MW7", 2015,
-                  ifelse(hv000=="TZ5", 2010,
-                  ifelse(hv000=="TZ7", 2015,
-                  ifelse(hv000=="UG4",2000,
-                  ifelse(hv000=="ZM6", 2013,
-                  dhsyear))))))),
+         dhsyear=case_when(
+           .$hv000=="KE5" ~ 2008,  .$hv000=="MW4" ~ 2005,
+           .$hv000=="MW7" ~ 2015,  .$hv000=="TZ5" ~ 2010,
+           .$hv000=="TZ7" ~ 2015,  .$hv000=="UG4" ~ 2000,
+           .$hv000=="ZM6" ~ 2013,   TRUE ~ as.numeric(dhsyear)),
          dhsround=substr(hv000,3,1),
          country=substr(hv000,1,2)) %>%
-left_join(wealth_index,by=c("hv000"="hv000", "hv001"="hv001", "hv002"="hv002")) %>%
-left_join(fish_village_final, by=c("country"="DHSCC", "dhsyear"="DHSYEAR", "dhsclust"="DHSCLUST")) %>%
+  left_join(wealth_index,by=c("hv000"="hv000", "hv001"="hv001", "hv002"="hv002")) %>%
+  left_join(fish_village_final, by=c("country"="DHSCC", "dhsyear"="DHSYEAR", "dhsclust"="DHSCLUST")) %>%
   mutate(fishing_community = ifelse(is.na(fishing_community), 0, fishing_community))
 
-hr_fish_gps <- setDT(hr_data, key="hhid")
+hr_fish_gps_upd <- setDT(hr_data, key="hhid")
 
-rm(all_hr, all_hr_combined, hr_data, hr, hr_files, hr_vars_to_keep, keep_hr)
-
+rm(all_hr, hr_fish_gps, all_hr_combined, hr_data, hr, hr_files, hr_vars_to_keep, keep_hr)
 
 ###Childhood data
 #Import KR DHS data
@@ -67,14 +63,11 @@ all_kr_combined <- rbindlist(all_kr, idcol="fill", fill=TRUE)
 kr_data <- all_kr_combined %>%
   mutate(dhsclust=v001,
          dhsyear=v007,
-         dhsyear= ifelse(v000=="KE5", 2008,
-                         ifelse(v000=="MW4", 2005,
-                                ifelse(v000=="MW7", 2015,
-                                       ifelse(v000=="TZ5", 2010,
-                                              ifelse(v000=="TZ7", 2015,
-                                                     ifelse(v000=="UG4",2000,
-                                                            ifelse(v000=="ZM6", 2013,
-                                                                   dhsyear))))))),
+         dhsyear=case_when(
+           .$v000=="KE5" ~ 2008,  .$v000=="MW4" ~ 2005,
+           .$v000=="MW7" ~ 2015,  .$v000=="TZ5" ~ 2010,
+           .$v000=="TZ7" ~ 2015,  .$v000=="UG4" ~ 2000,
+           .$v000=="ZM6" ~ 2013,   TRUE ~ as.numeric(dhsyear)),
          dhsround=substr(v000,3,1),
          country=substr(v000,1,2))  %>%
   left_join(wealth_index,by=c("v000"="hv000", "v001"="hv001", "v002"="hv002")) %>%
@@ -83,10 +76,6 @@ kr_data <- all_kr_combined %>%
         filter((b5=="Yes"|b5=="yes") & (v135=="usual resident"|v135=="Usual resident")) %>%
   mutate(fishing_community = ifelse(is.na(fishing_community), 0, fishing_community))
 
-
-kr_fish_gps <- setDT(kr_data, key="caseid")
+kr_fish_gps_upd <- setDT(kr_data, key="caseid")
 
 rm(all_kr, all_kr_combined, kr_data, keep_kr, kr, kr_files, kr_vars_to_keep, fish_gps, wealth_index, fish_village_final)
-
-
-

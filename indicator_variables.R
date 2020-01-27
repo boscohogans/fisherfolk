@@ -1,12 +1,15 @@
-##Household variables
-###Make HR variables 
-#Improved water source
-hr_fish_gps$hv201 <- tolower(hr_fish_gps$hv201)
+
+# Household variables -----------------------------------------------------
+
+
+hr_fish_gps_upd <- setDT(hr_fish_gps_upd)
 
 #Piped water
-hr_fish_gps[, water_piped := ifelse(grepl("piped", hv201), 1,0)]
+hr_fish_gps_upd$hv201 <- tolower(hr_fish_gps_upd$hv201)
 
-hr_fish_gps[, water_imp := ifelse(grepl("piped", hv201), 1,
+hr_fish_gps_upd[, water_piped := ifelse(grepl("piped", hv201), 1,0)]
+
+hr_fish_gps_upd[, water_imp := ifelse(grepl("piped", hv201), 1,
                                   ifelse(grepl("\\bprotected\\b", hv201), 1,
                                          ifelse(
                                            grepl("rain", hv201), 1,
@@ -19,28 +22,28 @@ hr_fish_gps[, water_imp := ifelse(grepl("piped", hv201), 1,
                                            )))))]
 
 #Time to water source
-hr_fish_gps$timetowater <- as.numeric(hr_fish_gps$hv204)
-hr_fish_gps$hv204 <- tolower(hr_fish_gps$hv204)
+hr_fish_gps_upd$timetowater <- as.numeric(hr_fish_gps_upd$hv204)
+hr_fish_gps_upd$hv204 <- tolower(hr_fish_gps_upd$hv204)
 
-hr_fish_gps[, water_on_premises := ifelse(((grepl("premises", hv204) | (timetowater==0)) &
+hr_fish_gps_upd[, water_on_premises := ifelse(((grepl("premises", hv204) | (timetowater==0)) &
                                              water_imp == 1), 1, 0)]
-hr_fish_gps[, less_than_5 := ifelse(((timetowater <= 5 | water_on_premises==1) &
+hr_fish_gps_upd[, less_than_5 := ifelse(((timetowater <= 5 | water_on_premises==1) &
                                        water_imp == 1), 1, 0)]
-hr_fish_gps[, less_than_30 := ifelse(((timetowater <= 30 | water_on_premises==1) &
+hr_fish_gps_upd[, less_than_30 := ifelse(((timetowater <= 30 | water_on_premises==1) &
                                         water_imp == 1), 1, 0)]
 
-hr_fish_gps <- tidyr::replace_na(hr_fish_gps, list(water_on_premises=0, less_than_5=0, less_than_30=0))
+hr_fish_gps_upd <- tidyr::replace_na(hr_fish_gps_upd, list(water_on_premises=0, less_than_5=0, less_than_30=0))
 
 #Improved sanitation
-hr_fish_gps$hv205 <- tolower(hr_fish_gps$hv205)
+hr_fish_gps_upd$hv205 <- tolower(hr_fish_gps_upd$hv205)
 
-hr_fish_gps[, san_imp :=   ifelse(grepl("\\bflush\\b", hv205), 1,
+hr_fish_gps_upd[, san_imp :=   ifelse(grepl("\\bflush\\b", hv205), 1,
                                   ifelse(
                                     grepl("latrine", hv205),
                                     1,
                                     ifelse(hv205 == "composting toilet", 1, 0)
                                   ))]
-hr_fish_gps[, san_imp :=   ifelse(grepl("uncovered", hv205), 0,
+hr_fish_gps_upd[, san_imp :=   ifelse(grepl("uncovered", hv205), 0,
                                   ifelse(grepl("somewhere", hv205), 0,
                                          ifelse(grepl("no slab", hv205), 0,
                                                 ifelse(grepl("without slab", hv205), 0,
@@ -48,27 +51,27 @@ hr_fish_gps[, san_imp :=   ifelse(grepl("uncovered", hv205), 0,
                                          ifelse(grepl("know where", hv205), 0,san_imp))))))]
 
 #Not improved if shared
-hr_fish_gps$hv225 <- tolower(hr_fish_gps$hv225)
-hr_fish_gps[,toilet_shared := ifelse(grepl("yes",hv225),1,0)]
-hr_fish_gps[, san_imp := ifelse(toilet_shared!=1,san_imp,0)]
+hr_fish_gps_upd$hv225 <- tolower(hr_fish_gps_upd$hv225)
+hr_fish_gps_upd[,toilet_shared := ifelse(grepl("yes",hv225),1,0)]
+hr_fish_gps_upd[, san_imp := ifelse(toilet_shared!=1,san_imp,0)]
 
 #Hygiene variables 
 #https://dhsprogram.com/Data/Guide-to-DHS-Statistics/index.htm#t=Handwashing.htm%23Percentage_of_households3bc-1&rhtocid=_5_7_0
 #Place for washing AND water is available
-hr_fish_gps[, hwashobs := ifelse((grepl("^observed", hv230a)) & (grepl("water is available", hv230b)), 1,0)]
+hr_fish_gps_upd[, hwashobs := ifelse((grepl("^observed", hv230a)) & (grepl("water is available", hv230b)), 1,0)]
 
 #Place for washing AND water AND soap/detergent present
-hr_fish_gps[, hwashobs_soap := ifelse(hwashobs==1 & (grepl("yes", hv232b)), 1,0)]
+hr_fish_gps_upd[, hwashobs_soap := ifelse(hwashobs==1 & (grepl("yes", hv232b)), 1,0)]
 
 
 #Improved housing
 # https://www.nature.com/articles/s41586-019-1050-5.pdf
 #Number of people per bedroom
-#hr_fish_gps[, ppl_per_bedroom := round((hv009 / hv216), 0)]
-hr_fish_gps[, ppl_per_bedroom := ifelse((!is.na(hv009) & !is.na(hv216)),(hv009/hv216),0)]
-hr_fish_gps$ppl_per_bedroom <- ifelse(!is.finite(hr_fish_gps$ppl_per_bedroom),0,hr_fish_gps$ppl_per_bedroom)
+#hr_fish_gps_upd[, ppl_per_bedroom := round((hv009 / hv216), 0)]
+hr_fish_gps_upd[, ppl_per_bedroom := ifelse((!is.na(hv009) & !is.na(hv216)),(hv009/hv216),0)]
+hr_fish_gps_upd$ppl_per_bedroom <- ifelse(!is.finite(hr_fish_gps_upd$ppl_per_bedroom),0,hr_fish_gps_upd$ppl_per_bedroom)
 
-hr_fish_gps[, three_per_bedroom := ifelse((ppl_per_bedroom > 3), 1, 0)]
+hr_fish_gps_upd[, three_per_bedroom := ifelse((ppl_per_bedroom > 3), 1, 0)]
 
 finished_materials <- c("concrete", "cement", "asbestos", "tiles", "iron", 
                         "ceramic","metal", "sheets", "bricks", "parquet", "vinyl", "zinc", "tin",
@@ -80,7 +83,7 @@ fa <- function(x) {
   ifelse(grepl(paste(finished_materials, collapse="|"),y),1,0)
 }
 
-hr_fish_gps <- hr_fish_gps %>%
+hr_fish_gps_upd <- hr_fish_gps_upd %>%
   mutate(roof_finished=fa(hv215),
          wall_finished=fa(hv214),
          floor_finished=fa(hv213),
@@ -98,14 +101,18 @@ hr_outcomes <-
     "san_imp",
     "housing_imp")
 
-household_indicators <- select(hr_fish_gps, hv000, hv001, hv002, hr_outcomes)
+household_indicators <- select(hr_fish_gps_upd, hv000, hv001, hv002, hr_outcomes)
 
-##Childhood variables
+
+# Childhood variables -----------------------------------------------------
+kr_fish_gps_upd <- setDT(kr_fish_gps_upd)
 
 kr_outcomes <- c("diarrhea",
                  "not_immun",
                  "ari",
                  "fever")
+
+
 
 f1 <- function(x) {
   y<- tolower(x)
@@ -113,9 +120,9 @@ f1 <- function(x) {
          ifelse(grepl("vacc",y),1,0))
 }
 #Change blanks to NA
-kr_fish_gps[kr_fish_gps==""] <- NA
+#kr_fish_gps_upd[kr_fish_gps_upd==""] <- NA
 
-kr_fish_gps_upd <- kr_fish_gps %>%
+kr_fish_gps_upd <- kr_fish_gps_upd %>%
   mutate(diarrhea=f1(h11),
          #*https://dhsprogram.com/data/Guide-to-DHS-Statistics/index.htm#t=Vaccination.htm%23Percentage_of_children9bc-1&rhtocid=_13_1_0
          vaccination=f1(h10),
@@ -136,4 +143,4 @@ kr_fish_gps_upd <- kr_fish_gps %>%
   left_join(household_indicators, by=c("v000"="hv000", "v001"="hv001", "v002"="hv002"))
 
 #Remove data frames which no longer need to be used
-rm(household_indicators, finished_materials, f1, fa, kr_fish_gps)
+rm(household_indicators, finished_materials, f1, fa)

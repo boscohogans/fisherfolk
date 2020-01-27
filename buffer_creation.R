@@ -11,7 +11,7 @@ countries <- do.call(rbind, lapply(list_shape,sf::st_read)) %>%
 st_crs(countries)
 
 #Make colour palette
-pal <- colorFactor(palette = "Set2",
+pal <- colorFactor(palette = "Set1",
                    domain = countries$NAME_0)
 
 #List of lakes to keep
@@ -39,7 +39,8 @@ list_shp <- list.files(path="data//DHS//gps_points",pattern="\\.shp$", full.name
 
 villages <- do.call(rbind, lapply(list_shp, rgdal::readOGR)) %>%
   subset(., URBAN_RURA=="R") %>%
-  subset(., subset=DHSCC %in% c("KE","MW", "TZ", "UG", "ZM")) %>%
+  subset(., subset=DHSCC %in% c("KE","MW", "TZ", "UG", "ZM")) %>% 
+  subset(., subset=DHSYEAR %in% c("2008",  "2010",  "2011",  "2013",  "2014",  "2015",  "2016")) %>% 
   st_as_sf(coords = c("LONGNUM", "LATNUM"), crs=4326)
 
 villages <-  villages %>%
@@ -70,7 +71,22 @@ fish_village_df <- as.data.frame(lakes_villages) %>%
 fish_village_final <- villages %>%
   left_join(fish_village_df, by=c("DHSID", "DHSCC", "DHSYEAR", "DHSCLUST")) 
   
-factpal <- colorFactor(topo.colors(2), fish_village_final$fish)
+fish_pal <- colorFactor(palette = "Set3",
+                   domain = fish_village_final$fishing_community)
+
+#Map for paper (Is this needed?)
+map_1 <- leaflet() %>%
+  addPolygons(
+    data = countries,
+    color = ~ pal(NAME_0),
+    fillOpacity = 0.4,
+    stroke = FALSE,
+    label = ~ NAME_0
+  ) %>%
+  addPolygons(
+    data = lakes,
+    label = ~ LAKE_NAME)
+
 
 #Check that data can map
 fish_map <- leaflet() %>%
@@ -85,9 +101,11 @@ fish_map <- leaflet() %>%
     data = lakes,
     label = ~ LAKE_NAME) %>%
   addCircles(data = fish_village_final,
-             color = ~factpal(fishing_community))
+             radius=5000,
+             color = ~fish_pal(fishing_community)) 
 
 write.csv(lakes_villages,  "data//rural_intersection_5km_20200121.csv")
 
+rm(list=ls()[! ls() %in% c("fish_village_final")])
 
 

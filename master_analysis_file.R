@@ -18,7 +18,6 @@ library(statar)
 
 #Finding fishing villages
 source("buffer_creation.R")
-rm(list=ls()[! ls() %in% c("fish_village_final")])
 
 #Building dataset
 source("building_dataset.R")
@@ -33,7 +32,7 @@ source("indicator_variables.R")
 source("propensity_score_match.R")
 
 #Inequality curves
-source("inequality_curves.R")
+#source("inequality_curves.R")
 
 #Regressions
 source("regressions.R")
