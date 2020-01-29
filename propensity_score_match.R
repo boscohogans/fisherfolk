@@ -10,8 +10,8 @@ hr_prop_data <- hr_fish_gps_upd %>%
   #Make new cluster variable
   mutate(clusters=paste(hv000, hv021, sep="_"),
          #Change fishing indicator to factor 
-         fishing_community=ifelse(is.na(fishing_community),0,fishing_community),
-         fish_factor=as.factor(fishing_community),
+         fishing_community_5=ifelse(is.na(fishing_community_5),0,fishing_community_5),
+         fish_factor=as.factor(fishing_community_5),
          round=ifelse(hv000 %in% c("KE6", "MW7", "TZ7", "UG7", "ZM6"),2,1)) %>%
   select(hv000,round, hhid, fish_factor, clusters,hv009,asset_index_nowashnomat,country)%>%
   group_by(clusters,fish_factor,round) %>%

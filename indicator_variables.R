@@ -112,8 +112,7 @@ kr_outcomes <- c("diarrhea",
                  "ari",
                  "fever")
 
-
-
+#Custom function for childhood data 
 f1 <- function(x) {
   y<- tolower(x)
   ifelse(grepl("yes",y),1,
@@ -143,4 +142,4 @@ kr_fish_gps_upd <- kr_fish_gps_upd %>%
   left_join(household_indicators, by=c("v000"="hv000", "v001"="hv001", "v002"="hv002"))
 
 #Remove data frames which no longer need to be used
-rm(household_indicators, finished_materials, f1, fa)
+rm(finished_materials, f1, fa)

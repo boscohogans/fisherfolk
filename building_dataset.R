@@ -36,11 +36,16 @@ hr_data <- all_hr_combined %>%
          country=substr(hv000,1,2)) %>%
   left_join(wealth_index,by=c("hv000"="hv000", "hv001"="hv001", "hv002"="hv002")) %>%
   left_join(fish_village_final, by=c("country"="DHSCC", "dhsyear"="DHSYEAR", "dhsclust"="DHSCLUST")) %>%
-  mutate(fishing_community = ifelse(is.na(fishing_community), 0, fishing_community))
+  mutate(fishing_community_5 = ifelse(is.na(fishing_community_5), 0, fishing_community_5),
+         fishing_community_25 = ifelse(is.na(fishing_community_25), 0, fishing_community_25),
+         fishing_community_125 = ifelse(is.na(fishing_community_125), 0, fishing_community_125))
 
 hr_fish_gps_upd <- setDT(hr_data, key="hhid")
 
-rm(all_hr, hr_fish_gps, all_hr_combined, hr_data, hr, hr_files, hr_vars_to_keep, keep_hr)
+#Compare wealth index with DHS wealth index
+res <-   cor.test(hr_fish_gps_upd$hv271, hr_fish_gps_upd$asset_index_nowashnomat,method = "pearson")
+
+rm(all_hr, hr_fish_gps, all_hr_combined, hr_data, hr, hr_files, hr_vars_to_keep, keep_hr, res)
 
 ###Childhood data
 #Import KR DHS data
@@ -74,7 +79,9 @@ kr_data <- all_kr_combined %>%
   left_join(fish_village_final, by=c("country"="DHSCC", "dhsyear"="DHSYEAR", "dhsclust"="DHSCLUST")) %>%
    #only keep record if child is alive and resident
         filter((b5=="Yes"|b5=="yes") & (v135=="usual resident"|v135=="Usual resident")) %>%
-  mutate(fishing_community = ifelse(is.na(fishing_community), 0, fishing_community))
+  mutate(fishing_community_5 = ifelse(is.na(fishing_community_5), 0, fishing_community_5),
+         fishing_community_25 = ifelse(is.na(fishing_community_25), 0, fishing_community_25),
+         fishing_community_125 = ifelse(is.na(fishing_community_125), 0, fishing_community_125))
 
 kr_fish_gps_upd <- setDT(kr_data, key="caseid")
 

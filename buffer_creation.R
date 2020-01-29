@@ -58,19 +58,35 @@ lakes_km = st_transform(lakes, "+proj=utm +zone=42N +datum=WGS84 +units=km")
 villages_km = st_transform(villages, "+proj=utm +zone=42N +datum=WGS84 +units=km")
 
 #Create 5km buffer zone
-lakes_buffer <- st_buffer(lakes_km, 5)
+lakes_buffer_5 <- st_buffer(lakes_km, 5)
+lakes_buffer_25 <- st_buffer(lakes_km, 2.5)
+lakes_buffer_125 <- st_buffer(lakes_km, 1.25)
+
+#village_buffer <- st_buffer(villages_km, 5)
 
 #Identify villages that fall within buffer
-lakes_villages <- st_intersection(lakes_buffer, villages_km)
+lakes_villages_5 <- st_intersection(lakes_buffer_5, villages_km)
+lakes_villages_25 <- st_intersection(lakes_buffer_25, villages_km)
+lakes_villages_125 <- st_intersection(lakes_buffer_125, villages_km)
 
-fish_village_df <- as.data.frame(lakes_villages) %>% 
+#villages_lakes <- st_intersection(village_buffer, lakes_km)
+fish_village_5 <- as.data.frame(lakes_villages_5) %>% 
   select(DHSID, DHSCC, DHSYEAR, DHSCLUST, LAKE_NAME) %>%
-  mutate(fishing_community=1)
+  mutate(fishing_community_5=1)
+fish_village_25 <- as.data.frame(lakes_villages_25) %>% 
+  select(DHSID, DHSCC, DHSYEAR, DHSCLUST, LAKE_NAME) %>%
+  mutate(fishing_community_25=1)
+fish_village_125 <- as.data.frame(lakes_villages_125) %>% 
+  select(DHSID, DHSCC, DHSYEAR, DHSCLUST, LAKE_NAME) %>%
+  mutate(fishing_community_125=1)
 
 #Join list of villages to list of fishing villages
 fish_village_final <- villages %>%
-  left_join(fish_village_df, by=c("DHSID", "DHSCC", "DHSYEAR", "DHSCLUST")) 
-  
+  left_join(fish_village_5, by=c("DHSID", "DHSCC", "DHSYEAR", "DHSCLUST")) %>% 
+  left_join(fish_village_25, by=c("DHSID", "DHSCC", "DHSYEAR", "DHSCLUST")) %>% 
+  left_join(fish_village_125, by=c("DHSID", "DHSCC", "DHSYEAR", "DHSCLUST")) %>% 
+  select(starts_with("DHS"), starts_with("fishing_community"), LAKE_NAME.x)
+
 fish_pal <- colorFactor(palette = "Set3",
                    domain = fish_village_final$fishing_community)
 
@@ -102,9 +118,14 @@ fish_map <- leaflet() %>%
     label = ~ LAKE_NAME) %>%
   addCircles(data = fish_village_final,
              radius=5000,
-             color = ~fish_pal(fishing_community)) 
+             color = ~fish_pal(fishing_community_5)) 
 
-write.csv(lakes_villages,  "data//rural_intersection_5km_20200121.csv")
+#write.csv(lakes_villages,  "data//rural_intersection_5km_20200121.csv")
+
+lake_df <- as.data.frame(fish_village_final) %>% 
+  filter(!is.na(LAKE_NAME.x))
+
+lake_df %>%  tab(DHSCC, LAKE_NAME.x)
 
 rm(list=ls()[! ls() %in% c("fish_village_final")])
 

@@ -13,8 +13,8 @@ hr_select <- hr_fish_gps_upd %>%
   left_join(select(propensity_score,clusters,weights), by="clusters") %>%
   #Keep if included in propensity score matching 
   filter(weights==1) %>%
-  mutate(fishing_community = ifelse(is.na(fishing_community), 0, fishing_community)) %>%
-  mutate(fish_factor = as.factor(fishing_community)) %>%
+  mutate(fishing_community_5 = ifelse(is.na(fishing_community_5), 0, fishing_community_5)) %>%
+  mutate(fish_factor = as.factor(fishing_community_5)) %>%
   #Change variables to factors
   mutate_at(vars(hr_outcomes),factor) %>%
   select(clusters,fish_factor,country, num_hhmembers,asset_index_nowashnomat,hr_outcomes,
@@ -70,8 +70,8 @@ kr_select <- kr_fish_gps_upd %>%
   #Keep if included in propensity score matching 
   filter(weights==1) %>%
   #Change fish community variable to factor
-  mutate(fishing_community = ifelse(is.na(fishing_community), 0, fishing_community)) %>%
-  mutate(fish_factor = as.factor(fishing_community)) %>%
+  mutate(fishing_community_5 = ifelse(is.na(fishing_community_5), 0, fishing_community_5)) %>%
+  mutate(fish_factor = as.factor(fishing_community_5)) %>%
   rename(num_hhmembers=v009) %>% 
   rename(medu_yrs=v133) %>%
   filter(!is.na(medu_yrs)) %>%

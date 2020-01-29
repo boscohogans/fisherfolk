@@ -19,6 +19,12 @@ library(statar)
 #Finding fishing villages
 source("buffer_creation.R")
 
+#Sensitivity analysis
+#source("sensitivity_analysis.R")
+
+#Kenya sensitivity
+#source("kenya_sensitivty.R")
+
 #Building dataset
 source("building_dataset.R")
 
@@ -31,6 +37,9 @@ source("indicator_variables.R")
 #Generate propenstiy score
 source("propensity_score_match.R")
 
+#Tables
+source("descriptive_tables.R")
+
 #Inequality curves
 #source("inequality_curves.R")
 
@@ -39,3 +48,4 @@ source("regressions.R")
 
 #Regression tables and graphs
 source("tables_graphs.R")
+
