@@ -1,11 +1,14 @@
 #Building DHS datasets
 countries <- c("KE", "MW", "TZ", "UG", "ZM")
 
+#countries <- c("KE", "MW", "TZ", "UG")
+
 ###Household data
 #Import HR DHS data
 hr <- list.files("data/DHS//HR", pattern=".csv", full.names = TRUE)
 
-keep_hr <- c("zmhr6", "zmhr5", "ughr7", "ughr6", "tzhr7", "tzhr6", "mwhr7", "mwhr6", "kehr7", "kehr5")
+#keep_hr <- c("zmhr6", "zmhr5", "ughr7", "ughr6", "tzhr7", "tzhr6", "mwhr7", "mwhr6", "kehr7", "kehr5")
+keep_hr <- c("ughr7", "ughr6", "tzhr7", "tzhr6", "mwhr7", "mwhr6", "kehr7", "kehr5")
 
 hr_files <- hr[grep(paste(keep_hr, collapse="|"),hr)]
 hr_vars_to_keep <- c("hhid","hv000","hv001","hv002","hv005","hv006", "hv007","hv009","hv014",
@@ -115,7 +118,9 @@ rm(all_hr, hr_fish_gps, all_hr_combined, hr_data, hr, hr_files, hr_vars_to_keep,
 #Import KR DHS data
 kr <- list.files("data/DHS//KR", pattern=".csv", full.names = TRUE)
 
-keep_kr <- c("zmkr6", "zmkr5", "ugkr7", "ugkr6", "tzkr7", "tzkr6", "mwkr7", "mwkr6", "kekr7", "kekr5")
+# Childhood data ----------------------------------------------------------
+#keep_kr <- c("zmkr6", "zmkr5", "ugkr7", "ugkr6", "tzkr7", "tzkr6", "mwkr7", "mwkr6", "kekr7", "kekr5")
+keep_kr <- c("ugkr7", "ugkr6", "tzkr7", "tzkr6", "mwkr7", "mwkr6", "kekr7", "kekr5")
 
 kr_files <- kr[grep(paste(keep_kr, collapse="|"),kr)]
 kr_vars_to_keep <- c("caseid", "v000", "v001", "v002", "v007",

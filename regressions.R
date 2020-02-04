@@ -143,9 +143,9 @@ kr_hr_models <- lapply(setNames(kr_outcomes, kr_outcomes), function(var) {
                ,family = 'binomial'
                ,control=glmerControl(optimizer="bobyqa",
                                      optCtrl=list(maxfun=2e5)))
-  odds <- map(kr_hr_fit, sjstats::odds_to_rr)
-  p_value <- map(kr_hr_fit, parameters::p_value)
-  cbind(odds, p_value) 
+  #odds <- map(kr_hr_fit, sjstats::odds_to_rr)
+  #p_value <- map(kr_hr_fit, parameters::p_value)
+  #cbind(odds, p_value) 
 })
 
 
@@ -161,8 +161,8 @@ kr_hr_country_models <- lapply(setNames(kr_outcomes, kr_outcomes), function(var)
                ,family = 'binomial'
                ,control=glmerControl(optimizer="bobyqa",
                                      optCtrl=list(maxfun=2e5))))
-  odds <- map(kr_hr_fit_country, sjstats::odds_to_rr)
-  p_value <- map(kr_hr_fit_country, parameters::p_value)
-  cbind(odds, p_value) 
+  # odds <- map(kr_hr_fit_country, sjstats::odds_to_rr)
+  # p_value <- map(kr_hr_fit_country, parameters::p_value)
+  # cbind(odds, p_value) 
 })
 

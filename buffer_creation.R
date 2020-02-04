@@ -4,8 +4,11 @@
 list_shape <- list.files(path="data//Shapefiles", pattern = "_1.shp", full.names = TRUE)
 
 #Read in country files
+# countries <- do.call(rbind, lapply(list_shape,sf::st_read)) %>%
+#   subset(., subset=NAME_0 %in% c("Malawi", "Zambia", "Kenya", "Tanzania", "Uganda"))
+
 countries <- do.call(rbind, lapply(list_shape,sf::st_read)) %>%
-  subset(., subset=NAME_0 %in% c("Malawi", "Zambia", "Kenya", "Tanzania", "Uganda"))
+  subset(., subset=NAME_0 %in% c("Malawi", "Kenya", "Tanzania", "Uganda"))
 
 #Check projection
 st_crs(countries)
@@ -37,10 +40,16 @@ lakes <-
 #We can import GPS data from DHS surveys
 list_shp <- list.files(path="data//DHS//gps_points",pattern="\\.shp$", full.names = TRUE) 
 
+# villages <- do.call(rbind, lapply(list_shp, rgdal::readOGR)) %>%
+#   subset(., URBAN_RURA=="R") %>%
+#   subset(., subset=DHSCC %in% c("KE","MW", "TZ", "UG", "ZM")) %>%
+#   subset(., subset=DHSYEAR %in% c("2008",  "2010",  "2011",  "2013",  "2014",  "2015",  "2016")) %>%
+#   st_as_sf(coords = c("LONGNUM", "LATNUM"), crs=4326)
+
 villages <- do.call(rbind, lapply(list_shp, rgdal::readOGR)) %>%
   subset(., URBAN_RURA=="R") %>%
-  subset(., subset=DHSCC %in% c("KE","MW", "TZ", "UG", "ZM")) %>% 
-  subset(., subset=DHSYEAR %in% c("2008",  "2010",  "2011",  "2013",  "2014",  "2015",  "2016")) %>% 
+  subset(., subset=DHSCC %in% c("KE","MW", "TZ", "UG")) %>%
+  subset(., subset=DHSYEAR %in% c("2007", "2008",  "2010",  "2011",  "2013",  "2014",  "2015",  "2016")) %>%
   st_as_sf(coords = c("LONGNUM", "LATNUM"), crs=4326)
 
 villages <-  villages %>%

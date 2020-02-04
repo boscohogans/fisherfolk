@@ -72,7 +72,7 @@ p_value_table <- rbindlist(p_value, idcol = "id")
   #filter(parameter=="fish_factor1")  
   #select(-c("parameter")) %>% 
   rename(measure=variable)  %>% 
-  reshape2::dcast(parameter  ~ forcats::fct_rev(id) + measure, value.var="value") %>% 
+  reshape2::dcast(parameter  ~ forcats::fct_rev(id) + measure, value.var="value") 
   sjPlot::tab_df(title="Regression results", file="outputs//kr_hr_reg_table.doc")
 
 
@@ -83,7 +83,8 @@ rm(odds, p_value, odds_table, p_value_table)
 plyr::ldply(hr_country_models, data.frame) %>% 
   janitor::clean_names() %>% 
   select(-contains("odds")) %>% 
-  select(-c("mw_parameter", "tz_parameter", "ug_parameter", "zm_parameter")) %>% 
+  select(-c("mw_parameter", "tz_parameter", "ug_parameter")) %>% 
+  #select(-c("mw_parameter", "tz_parameter", "ug_parameter", "zm_parameter")) %>% 
   rename(parameter=ke_parameter) %>% 
   reshape2::melt(id.vars=c("id", "parameter")) %>% 
   mutate(country=stringr::str_sub(variable,1,2),

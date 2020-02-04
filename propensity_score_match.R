@@ -1,18 +1,14 @@
 
-#setwd("C:/Users/idcvdken/Dropbox (LSoHaTM)/DK/Fisherpeople/Data/DHS/FileOut")
+# Propensity Score Matching -----------------------------------------------
 
-#Read in dataset
-#library(readstata13)
-#hr <- read.dta13("data//gps_hr_20191120_dk.dta")
 
-##library(tidyverse)
 hr_prop_data <- hr_fish_gps_upd %>%
   #Make new cluster variable
   mutate(clusters=paste(hv000, hv021, sep="_"),
          #Change fishing indicator to factor 
-         fishing_community_5=ifelse(is.na(fishing_community_5),0,fishing_community_5),
+         #fishing_community_5=ifelse(is.na(fishing_community_5),0,fishing_community_5),
          fish_factor=as.factor(fishing_community_5),
-         round=ifelse(hv000 %in% c("KE6", "MW7", "TZ7", "UG7", "ZM6"),2,1)) %>%
+         round=ifelse(hv000 %in% c("KE5", "MW5", "TZ5", "UG6", "ZM5"),1,2)) %>%
   select(hv000,round, hhid, fish_factor, clusters,hv009,asset_index_nowashnomat,country)%>%
   group_by(clusters,fish_factor,round) %>%
   summarise(median_hhmembers=median(hv009),
