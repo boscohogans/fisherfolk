@@ -87,45 +87,67 @@ fish_village_final <- villages %>%
   left_join(fish_village_125, by=c("DHSID", "DHSCC", "DHSYEAR", "DHSCLUST")) %>% 
   select(starts_with("DHS"), starts_with("fishing_community"), LAKE_NAME.x)
 
-fish_pal <- colorFactor(palette = "Set3",
-                   domain = fish_village_final$fishing_community)
+# fish_pal <- colorFactor(palette = "Set3",
+#                    domain = fish_village_final$fishing_community)
+# 
+# #Map for paper (Is this needed?)
+# map_1 <- leaflet() %>%
+#   addPolygons(
+#     data = countries,
+#     color = ~ pal(NAME_0),
+#     fillOpacity = 0.4,
+#     stroke = FALSE,
+#     label = ~ NAME_0
+#   ) %>%
+#   addPolygons(
+#     data = lakes,
+#     label = ~ LAKE_NAME)
+# 
+# 
+# #Check that data can map
+# fish_map <- leaflet() %>%
+#   addPolygons(
+#     data = countries,
+#     color = ~ pal(NAME_0),
+#     fillOpacity = 0.4,
+#     stroke = FALSE,
+#     label = ~ NAME_0
+#   ) %>%
+#   addPolygons(
+#     data = lakes,
+#     label = ~ LAKE_NAME) %>%
+#   addCircles(data = fish_village_final,
+#              radius=5000,
+#              color = ~fish_pal(fishing_community_5)) 
+# 
+# #write.csv(lakes_villages,  "data//rural_intersection_5km_20200121.csv")
+# 
+# fish_village <- as.data.frame(fish_village_final)
+# 
+# fish_village %>% 
+#   mutate(count=1) %>% 
+#   janitor::clean_names() %>% 
+#   filter(!is.na(lake_name_x)) %>% 
+#   count(dhscc,dhsid, lake_name_x) %>% 
+#   mutate(Country=case_when(
+#     dhscc=="KE" ~ "Kenya",
+#     dhscc=="MW" ~ "Malawi",
+#     dhscc=="TZ" ~ "Tanzania",
+#     dhscc=="UG" ~ "Uganda",
+#     dhscc=="ZM" ~ "Zambia")) %>% 
+#   mutate(Lake=ifelse(lake_name_x=="Lake Victoria", "Victoria", as.character(lake_name_x))) %>% 
+#   select(Lake, Country,n) %>% 
+#   reshape2::dcast(Lake  ~ Country , value.var = "n") %>% 
+#   janitor::adorn_totals("row","col") %>% 
+#   janitor::adorn_totals("col") 
+# 
+# 
+# 
+# fish_lake_country[is.na(fish_lake_country)] <- 0
+# 
+# fish_lake_country %>% 
+#   sjPlot::tab_df(title="Fishing community by lake and country", file="outputs//fish_lake_country.doc")
 
-#Map for paper (Is this needed?)
-map_1 <- leaflet() %>%
-  addPolygons(
-    data = countries,
-    color = ~ pal(NAME_0),
-    fillOpacity = 0.4,
-    stroke = FALSE,
-    label = ~ NAME_0
-  ) %>%
-  addPolygons(
-    data = lakes,
-    label = ~ LAKE_NAME)
-
-
-#Check that data can map
-fish_map <- leaflet() %>%
-  addPolygons(
-    data = countries,
-    color = ~ pal(NAME_0),
-    fillOpacity = 0.4,
-    stroke = FALSE,
-    label = ~ NAME_0
-  ) %>%
-  addPolygons(
-    data = lakes,
-    label = ~ LAKE_NAME) %>%
-  addCircles(data = fish_village_final,
-             radius=5000,
-             color = ~fish_pal(fishing_community_5)) 
-
-#write.csv(lakes_villages,  "data//rural_intersection_5km_20200121.csv")
-
-lake_df <- as.data.frame(fish_village_final) %>% 
-  filter(!is.na(LAKE_NAME.x))
-
-lake_df %>%  tab(DHSCC, LAKE_NAME.x)
 
 rm(list=ls()[! ls() %in% c("fish_village_final")])
 

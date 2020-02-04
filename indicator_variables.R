@@ -1,7 +1,5 @@
 
 # Household variables -----------------------------------------------------
-
-
 hr_fish_gps_upd <- setDT(hr_fish_gps_upd)
 
 #Piped water

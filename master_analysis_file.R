@@ -15,6 +15,7 @@ library(broom.mixed)
 library(PerformanceAnalytics)
 library(ggpubr)
 library(statar)
+library(ggplot2)
 
 #Finding fishing villages
 source("buffer_creation.R")

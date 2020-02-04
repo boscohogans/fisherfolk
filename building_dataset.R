@@ -8,7 +8,7 @@ hr <- list.files("data/DHS//HR", pattern=".csv", full.names = TRUE)
 keep_hr <- c("zmhr6", "zmhr5", "ughr7", "ughr6", "tzhr7", "tzhr6", "mwhr7", "mwhr6", "kehr7", "kehr5")
 
 hr_files <- hr[grep(paste(keep_hr, collapse="|"),hr)]
-hr_vars_to_keep <- c("hhid","hv000","hv001","hv002","hv005","hv007","hv009","hv014",
+hr_vars_to_keep <- c("hhid","hv000","hv001","hv002","hv005","hv006", "hv007","hv009","hv014",
                      "hv021","hv025","hv201","hv204","hv205","hv206", "hv207", "hv208", 
                      "hv243a", "hv221", "hv209", "hv230a", "hv230b", "hv232","hv232b","hv232y",  "sh110l", "sh110i", "sh110j", "sh110n", 
                      "sh110v", "hv243b", "sh118g", "hv210", "hv211", "hv243c", "hv212", 
@@ -43,7 +43,71 @@ hr_data <- all_hr_combined %>%
 hr_fish_gps_upd <- setDT(hr_data, key="hhid")
 
 #Compare wealth index with DHS wealth index
-res <-   cor.test(hr_fish_gps_upd$hv271, hr_fish_gps_upd$asset_index_nowashnomat,method = "pearson")
+#res <-   cor.test(hr_fish_gps_upd$hv271, hr_fish_gps_upd$asset_index_nowashnomat,method = "pearson")
+
+#Correlation matrix of asset index
+library(grid)
+grob3 = grid::grobTree(grid::textGrob(paste("Pearson Correlation : ", 
+                                            round(cor(hr_fish_gps_upd$asset_index_nowashnomat, 
+                                                      hr_fish_gps_upd$hv271), 4) ), 
+                                      x = 0.63, y = 0.97, hjust = 0, 
+                                      gp = gpar(col = "red", fontsize = 11, fontface = "bold")))
+
+
+library(ggplot2)
+ggplot(hr_fish_gps_upd, aes(x=asset_index_nowashnomat, y=hv271)) + 
+  geom_point() +
+  ggtitle("Comparing DHS wealth asset index to generated wealth asset index without WASH and household construction variables") + 
+  geom_smooth(method=lm, se=FALSE) + 
+  scale_x_continuous(name = "Generated wealth asset index") + 
+  scale_y_continuous(name = "DHS asset index") + 
+  annotation_custom(grob3) + 
+  theme(plot.title = element_text(hjust = 0.5), panel.background = element_blank(), 
+        axis.line = element_line(color="black"), axis.line.x = element_line(color="black"))
+
+survey_dates <- hr_fish_gps_upd %>% 
+  mutate(hv007=replace_na(hv007,2007)) %>% 
+  group_by(hv000, hv006, hv007) %>% 
+  slice(.,1) %>% 
+  select(hv000, hv006, hv007) %>% 
+  #replace_na(hv007, 2007) %>% 
+  mutate(date=paste(hv006, hv007, sep="/")) %>% 
+  arrange(hv000, hv007, hv006) %>% 
+  group_by(hv000) %>% 
+  mutate(first=first(date),
+         last=last(date)) %>% 
+  slice(1) %>% 
+  mutate(survey_period=paste(first,"-", last)) %>% 
+  select(hv000,survey_period)
+
+#Count clusters by DHS round
+table1 <- hr_fish_gps_upd %>% 
+  #filter(fishing_community_5==1) %>% 
+  mutate(flag=1) %>% 
+  mutate(clusters= paste(hv000,hv021,sep="_")) %>%
+  group_by(clusters) %>% 
+  left_join(., survey_dates, by=("hv000")) %>% 
+  janitor::clean_names() %>% 
+  mutate(round=substr(hv000,3,3)) %>% 
+  mutate(country=substr(hv000,1,2)) %>% 
+  mutate(country=case_when(
+    country=="KE" ~ "Kenya",
+    country=="MW" ~ "Malawi",
+    country=="TZ" ~ "Tanzania",
+    country=="UG" ~ "Uganda",
+    country=="ZM" ~ "Zambia")) %>% 
+  count(country, round,survey_period, fishing_community_5,lake_name_x)   %>% 
+  select(country,round,survey_period, lake_name_x,n) %>% 
+  mutate(cluster_count=1) %>% 
+  rename(hh_count=n) %>% 
+  reshape2::dcast(country + round + survey_period ~ lake_name_x, value.var = "hh_count") %>% 
+  select(-"NA") %>% 
+  janitor::adorn_totals("row") %>% 
+  janitor::adorn_totals("col") 
+
+table1 %>% 
+sjPlot::tab_df(title="Fishing community by lake and country", file="outputs//table1.doc")
+
 
 rm(all_hr, hr_fish_gps, all_hr_combined, hr_data, hr, hr_files, hr_vars_to_keep, keep_hr, res)
 
